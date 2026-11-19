@@ -75,7 +75,7 @@ const T = {
     miaVuota: "Sign in to add your own channels and topics.",
     aggiungiCanale: "Add a channel", mieiArgomenti: "My topics", mieiCanali: "My channels", nessunMio: "Nothing added yet.",
     mioTag: "mine", inArgomento: "in", entraPrima: "Sign in first.",
-    cookieTesto: "Lavagna has no ads and no tracking. Your preferences (language, theme, watch later) stay on your device. Videos are played by YouTube, Vimeo and other platforms, and fonts come from Google Fonts: these may set their own cookies or see your IP address.",
+    cookieTesto: "Lavagna has no ads and no tracking. Your preferences (language, theme, watch later) stay on your device. When you play a video, its platform (YouTube's privacy-enhanced player, Vimeo and others) may set its own cookies. Fonts come from Google Fonts, which sees your IP address: choose «Essential only» to use your device's fonts instead.",
     cookieTutti: "Accept all", cookieEssenziali: "Essential only", cookieInfo: "Privacy", cookieImpostazioni: "Cookie settings",
     esternoTesto: (f) => `This video is played by ${f}, which may set cookies. You chose essential cookies only.`,
     esternoUnaVolta: "▶ Play this video", esternoSempre: "Always allow",
@@ -83,7 +83,8 @@ const T = {
     privacyCorpo: `<p><b>No ads, no tracking, no profiles.</b> Lavagna does not use analytics, advertising or tracking cookies.</p>
       <p><b>Optional account, with a passkey.</b> If you create one, we store only a random id, the name you choose, your passkey's public key and the channels and topics you add. No email, no password. A sign-in cookie keeps you logged in; «Delete my account» erases everything. The passkey library is loaded from jsDelivr only when you sign up or sign in.</p>
       <p><b>On your device.</b> Your language, theme, video-language filter, playback speed and «Watch later» list are saved in your browser's local storage. They never leave your device and you can clear them at any time from your browser.</p>
-      <p><b>Third parties, only with your consent.</b> Videos are played by their own platforms (YouTube via its privacy-enhanced youtube-nocookie.com player, Vimeo, Internet Archive, PeerTube); fonts come from Google Fonts. These services may set cookies or receive your IP address. If you choose «Essential only», fonts aren't loaded and each video asks before loading an external player. Thumbnails are images served by the platforms.</p>
+      <p><b>Video platforms.</b> Videos are played by their own platforms (YouTube via its privacy-enhanced youtube-nocookie.com player, Vimeo, Internet Archive, PeerTube). When you start a video, that platform may set its own cookies and receives your IP address, under its own privacy policy. Thumbnails are images served by the platforms.</p>
+      <p><b>Fonts, only with your consent.</b> With «Accept all», fonts are loaded from Google Fonts, which sees your IP address. With «Essential only», your device's own fonts are used instead.</p>
       <p><b>Server.</b> The site runs on Cloudflare, which processes standard technical data (such as your IP address) to deliver the pages. Lavagna keeps no logs of who watches what.</p>
       <p>You can change your choice any time with «Cookie settings» at the bottom of the page.</p>`,
   },
@@ -151,7 +152,7 @@ const T = {
     miaVuota: "Entra per aggiungere i tuoi canali e argomenti.",
     aggiungiCanale: "Aggiungi un canale", mieiArgomenti: "I miei argomenti", mieiCanali: "I miei canali", nessunMio: "Ancora niente.",
     mioTag: "mio", inArgomento: "in", entraPrima: "Prima entra.",
-    cookieTesto: "Lavagna non ha pubblicità né tracciamento. Le tue preferenze (lingua, tema, da vedere) restano sul tuo dispositivo. I video sono riprodotti da YouTube, Vimeo e altre piattaforme, e i caratteri arrivano da Google Fonts: questi servizi possono usare i loro cookie o vedere il tuo indirizzo IP.",
+    cookieTesto: "Lavagna non ha pubblicità né tracciamento. Le tue preferenze (lingua, tema, da vedere) restano sul tuo dispositivo. Quando avvii un video, la sua piattaforma (il lettore a privacy avanzata di YouTube, Vimeo e altre) può usare i suoi cookie. I caratteri arrivano da Google Fonts, che vede il tuo indirizzo IP: con «Solo essenziali» si usano quelli del tuo dispositivo.",
     cookieTutti: "Accetta tutti", cookieEssenziali: "Solo essenziali", cookieInfo: "Privacy", cookieImpostazioni: "Impostazioni cookie",
     esternoTesto: (f) => `Questo video è riprodotto da ${f}, che può usare cookie. Hai scelto solo i cookie essenziali.`,
     esternoUnaVolta: "▶ Guarda questo video", esternoSempre: "Consenti sempre",
@@ -159,7 +160,8 @@ const T = {
     privacyCorpo: `<p><b>Niente pubblicità, niente tracciamento, niente profili.</b> Lavagna non usa cookie di statistica, pubblicità o tracciamento.</p>
       <p><b>Account facoltativo, con passkey.</b> Se lo crei, salviamo solo un id casuale, il nome che scegli, la chiave pubblica della tua passkey e i canali e argomenti che aggiungi. Niente email, niente password. Un cookie d'accesso ti tiene collegato; «Cancella il mio account» cancella tutto. La libreria delle passkey si carica da jsDelivr solo quando ti registri o entri.</p>
       <p><b>Sul tuo dispositivo.</b> Lingua, tema, filtro della lingua dei video, velocità e lista «Da vedere» sono salvati nella memoria locale del browser. Non lasciano mai il tuo dispositivo e puoi cancellarli quando vuoi dal browser.</p>
-      <p><b>Servizi esterni, solo col tuo consenso.</b> I video sono riprodotti dalle loro piattaforme (YouTube con il lettore a privacy avanzata youtube-nocookie.com, Vimeo, Internet Archive, PeerTube); i caratteri arrivano da Google Fonts. Questi servizi possono usare cookie o ricevere il tuo indirizzo IP. Se scegli «Solo essenziali», i caratteri non vengono caricati e ogni video chiede prima di aprire un lettore esterno. Le miniature sono immagini servite dalle piattaforme.</p>
+      <p><b>Piattaforme video.</b> I video sono riprodotti dalle loro piattaforme (YouTube con il lettore a privacy avanzata youtube-nocookie.com, Vimeo, Internet Archive, PeerTube). Quando avvii un video, la piattaforma può usare i suoi cookie e riceve il tuo indirizzo IP, secondo la sua informativa. Le miniature sono immagini servite dalle piattaforme.</p>
+      <p><b>Caratteri, solo col tuo consenso.</b> Con «Accetta tutti» i caratteri arrivano da Google Fonts, che vede il tuo indirizzo IP. Con «Solo essenziali» si usano quelli del tuo dispositivo.</p>
       <p><b>Server.</b> Il sito gira su Cloudflare, che tratta i dati tecnici di base (come l'indirizzo IP) per consegnare le pagine. Lavagna non tiene registri di chi guarda cosa.</p>
       <p>Puoi cambiare scelta quando vuoi con «Impostazioni cookie» in fondo alla pagina.</p>`,
   },
@@ -196,8 +198,10 @@ function mostraCookie() {
   $("#cEssenziali").onclick = () => scegli("essenziali");
 }
 // con «solo essenziali», prima di aprire un lettore esterno si chiede: una volta, o sempre
+// (scelta dell'utente, 19 nov 2026: i video partono sempre senza chiedere; il consenso vale solo per i caratteri di Google)
 function chiediEsterno(dove, fonte) {
-  if (esterniOk()) return Promise.resolve(true);
+  return Promise.resolve(true);
+  // eslint-disable-next-line no-unreachable
   return new Promise((ok) => {
     const box = document.createElement("div");
     box.className = "tv-copri esterno";
