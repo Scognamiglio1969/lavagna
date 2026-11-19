@@ -18,7 +18,7 @@ No ads on the page. No Shorts. No algorithm pulling you down a rabbit hole. Just
 - 🚫 **No ads, no Shorts, no algorithm.** The page has zero ads and zero tracking. Shorts never show up. Nothing autoplays you into junk.
 - 📺 **TV mode.** Pick a topic and let it play, one great video after another. Plus two live channels: Earth from the Space Station, and the strongest chess game being played right now.
 - ⏩ **Your pace.** Every video plays at 1× to 2×, with a sleep timer ("stop at the end of this video") for evening watching.
-- 🗂 **Topics, not a feed.** 19 topics in five groups — browse like a library, not a slot machine.
+- 🗂 **Topics, not a feed.** 20 topics in five groups — browse like a library, not a slot machine.
 - 🌍 **English and Italian**, side by side, with a filter for video language. Interface in English or Italian.
 - 🌙 **Light, dark or automatic** theme.
 - 🏛 **More than YouTube.** Public-domain films from the Internet Archive, NASA footage, Vimeo documentaries, PeerTube.

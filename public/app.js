@@ -172,7 +172,7 @@ let ui = memo.get("ui", "en");
 const t = (k, ...a) => { const v = T[ui]?.[k] ?? T.en[k] ?? k; return typeof v === "function" ? v(...a) : v; };
 // nomi degli argomenti in inglese (quelli creati dal sito restano come scritti)
 const NOMI_EN = { scienza: "Science", matematica: "Maths", scacchi: "Chess", dibattiti: "Debates", storia: "History", filosofia: "Philosophy",
-  ingegneria: "Engineering", tech: "Tech", auto: "Cars", food: "Food", attualita: "Current affairs", documentari: "Documentaries",
+  ingegneria: "Engineering", tech: "Tech", ai: "AI", auto: "Cars", food: "Food", attualita: "Current affairs", documentari: "Documentaries",
   arte: "Art & architecture", musica: "Music", economia: "Economics", cinema: "Film", diritto: "Law & institutions", fashion: "Fashion", lezioni: "Lectures" };
 const nomeDi = (c) => (ui === "en" && NOMI_EN[c?.id]) || c?.nome || "";
 const numero = (x) => x.toLocaleString(ui === "it" ? "it-IT" : "en-GB");
@@ -308,7 +308,7 @@ const attesa = () => `<div class="griglia">${Array.from({ length: 12 }, () => '<
 
 // Argomenti raggruppati: i gruppi sono solo per l'occhio, gli argomenti creati dal sito vanno in «I tuoi argomenti»
 const GRUPPI = [
-  ["Scienze e tecnica", ["scienza", "matematica", "ingegneria", "tech", "lezioni"]],
+  ["Scienze e tecnica", ["scienza", "matematica", "ingegneria", "tech", "ai", "lezioni"]],
   ["Storia e idee", ["storia", "filosofia", "dibattiti", "diritto", "documentari"]],
   ["Società", ["attualita", "economia"]],
   ["Arti", ["arte", "musica", "cinema", "fashion"]],

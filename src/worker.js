@@ -213,6 +213,7 @@ const RICERCHE = {
   economia: [["economia spiegata", "it"], ["politica economica", "it"], ["economics explained", "en"], ["economic history", "en"]],
   cinema: [["analisi film", "it"], ["storia del cinema", "it"], ["film analysis video essay", "en"], ["cinematography explained", "en"]],
   diritto: [["diritto spiegato", "it"], ["diritto costituzionale lezione", "it"], ["law explained", "en"], ["constitutional law", "en"]],
+  ai: [["intelligenza artificiale spiegata", "it"], ["reti neurali spiegate", "it"], ["artificial intelligence explained", "en"], ["machine learning lecture", "en"]],
   fashion: [["storia della moda", "it"], ["sartoria tecniche", "it"], ["fashion history", "en"], ["fashion industry explained", "en"]],
 };
 // tutte le parole chiave: quelle del codice più quelle degli argomenti creati dal sito
