@@ -2,11 +2,11 @@
 
 *by Massimo Scognamiglio*
 
-## YouTube, curated. No ads.
+## YouTube, curated. No ads on the page.
 
-**Lavagna is the best of YouTube for curious people — hand-picked, ad-free, and calm.**
+**Lavagna is the best of YouTube for curious people — hand-picked, with no ads on the page, and calm.**
 
-No ads on the page. No Shorts. No algorithm pulling you down a rabbit hole. Just ~400 great channels about science, history, maths, philosophy, law, economics, art, music, film, fashion, chess and more — in English and Italian.
+No ads on the page. No Shorts. No algorithm pulling you down a rabbit hole. Just ~400 great channels about science, history, maths, philosophy, law, economics, art, music, film, fashion, chess and more — in English, Italian, Spanish, German and French.
 
 👉 **Try it: https://lavagna.lavagna-video.workers.dev**
 
@@ -15,11 +15,12 @@ No ads on the page. No Shorts. No algorithm pulling you down a rabbit hole. Just
 ## Why it's cool
 
 - 🎯 **Curated, not recommended.** Every channel is picked by a person and checked: active, long-form videos, a real audience. No clickbait farms.
-- 🚫 **No ads, no Shorts, no algorithm.** The page has zero ads and zero tracking. Shorts never show up. Nothing autoplays you into junk.
+- 🚫 **No ads on the page, no Shorts, no algorithm.** Lavagna itself has zero ads and zero tracking. Shorts never show up. Nothing autoplays you into junk. (Videos play in YouTube's own player, which may show its ads; they disappear with YouTube Premium.)
 - 📺 **TV mode.** Pick a topic and let it play, one great video after another. Plus two live channels: Earth from the Space Station, and the strongest chess game being played right now.
 - ⏩ **Your pace.** Every video plays at 1× to 2×, with a sleep timer ("stop at the end of this video") for evening watching.
 - 🗂 **Topics, not a feed.** 20 topics in five groups — browse like a library, not a slot machine.
-- 🌍 **English and Italian**, side by side, with a filter for video language. Interface in English or Italian.
+- 🌍 **Five languages of content**: English, Italian, Spanish, German, French, with a filter for video language. Interface in English or Italian.
+- 💬 **Subtitles in your language**: pick a language in ⚙ and videos open with subtitles on (original or auto-translated by YouTube). Videos with several audio tracks play the one in your language.
 - 🌙 **Light, dark or automatic** theme.
 - 🏛 **More than YouTube.** Public-domain films from the Internet Archive, NASA footage, Vimeo documentaries, PeerTube.
 - 🔎 **Search the whole archive** by words, topic, length and source — or just browse the most recent and most watched.
@@ -90,4 +91,4 @@ The page itself has no ads and no tracking. Videos play in each platform's own p
 
 ## In italiano
 
-**Lavagna** è una videoteca per imparare, scelta a mano: canali ufficiali e archivi aperti, senza pubblicità nella pagina, senza Shorts e senza consigli automatici. Account facoltativo con passkey (niente email né password) per aggiungere i propri canali e argomenti. Interfaccia in inglese e in italiano (⚙ in alto a destra), tema chiaro, scuro o automatico. Ricerca per parole (e presto anche per significato), modalità TV con timer di spegnimento, velocità fino a 2× su ogni video, e strumenti per aggiungere canali e argomenti nuovi.
+**Lavagna** è una videoteca per imparare, scelta a mano: canali ufficiali e archivi aperti, senza pubblicità nella pagina, senza Shorts e senza consigli automatici. Account facoltativo con passkey (niente email né password) per aggiungere i propri canali e argomenti. Video in italiano, inglese, spagnolo, tedesco e francese, con sottotitoli nella lingua che scegli. Interfaccia in inglese e in italiano (⚙ in alto a destra), tema chiaro, scuro o automatico. Ricerca per parole (e presto anche per significato), modalità TV con timer di spegnimento, velocità fino a 2× su ogni video, e strumenti per aggiungere canali e argomenti nuovi.

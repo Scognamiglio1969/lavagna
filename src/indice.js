@@ -202,7 +202,7 @@ export const comeVideo = (r) => ({
 function filtri(p) {
   const dove = [], valori = [];
   if (p.cat) { dove.push("v.cat = ?"); valori.push(p.cat); }
-  if (p.lingua === "it" || p.lingua === "en") { dove.push("v.lingua = ?"); valori.push(p.lingua); }
+  if (["it", "en", "es", "de", "fr"].includes(p.lingua)) { dove.push("v.lingua = ?"); valori.push(p.lingua); }
   if (p.fonte) { dove.push("v.fonte = ?"); valori.push(p.fonte); }
   if (DURATE[p.durata]) { dove.push("v.durata >= ? AND v.durata < ?"); valori.push(...DURATE[p.durata]); }
   return { dove, valori };
@@ -288,7 +288,7 @@ export async function togliCanale(env, canale) {
 
 // ——— la home: 3 in evidenza, 4 novità, 5 per ogni sezione ———
 export async function home(env, categorie, lingua) {
-  const lin = lingua === "it" || lingua === "en" ? lingua : "";
+  const lin = ["it", "en", "es", "de", "fr"].includes(lingua) ? lingua : "";
   const filtro = lin ? "AND lingua = ?" : "";
   const arg = lin ? [lin] : [];
   const corta = (r) => ({ ...comeVideo(r), descrizione: (r.descrizione || "").slice(0, 300) });

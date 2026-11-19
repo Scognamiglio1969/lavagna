@@ -310,3 +310,12 @@ h2.blocco small { font: 400 13px Inter, sans-serif; color: var(--tenue); margin-
 .schermo:hover > a.freccia, .schermo > a.freccia:focus { opacity: 1; }
 .schermo > a.freccia:hover { background: var(--accento); }
 @media (max-width: 600px) { .schermo > a.freccia { width: 34px; height: 54px; font-size: 34px; opacity: .8; } }
+/* lingua dei video: menu compatto */
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.lingue { border: 0; overflow: visible; }
+.lingue select { appearance: none; -webkit-appearance: none; font: 600 13px Inter, system-ui, sans-serif; color: var(--gesso); cursor: pointer;
+  background: rgb(255 255 255 / .08) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23f3efe4' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 11px center;
+  border: 1px solid rgb(255 255 255 / .25); border-radius: 999px; padding: 8px 28px 8px 14px; }
+.lingue select option { color: #1d2420; }
+.imposta-menu .scelta-sotto { width: 100%; font: inherit; font-size: 13.5px; color: var(--inchiostro); background: var(--fondo); border: 1px solid var(--linea); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; }
+.imposta-menu .nota-audio { font-size: 12px; color: var(--tenue); margin: 0 2px 4px; line-height: 1.45; }

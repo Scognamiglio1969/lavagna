@@ -1,6 +1,9 @@
 import { CATEGORIE } from "./canali.js";
 import { PROPOSTE } from "./proposte.js";
 import { gestisciConto, utenteDa } from "./conto.js";
+
+const LINGUE = ["it", "en", "es", "de", "fr"]; // lingue dei canali
+const PAESE = { it: "IT", es: "ES", de: "DE", fr: "FR" };
 import { lavoroPeriodico, salvaVideo, cerca, statoIndice, videoDiCategoria, videoDiCanale, togliCanale, spostaVideo, home } from "./indice.js";
 
 const CACHE_SECONDI = 1800; // ogni feed si rilegge al massimo ogni mezz'ora
@@ -223,7 +226,7 @@ async function scopri(presenti, quanti, ricerche = RICERCHE) {
   const voci = mescola(Object.entries(ricerche).flatMap(([cat, q]) => q.map(([testo, lingua]) => ({ cat, testo, lingua })))).slice(0, 3);
   const candidati = [];
   for (const { cat, testo, lingua } of voci) {
-    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(testo)}&sp=EgIQAg%253D%253D&hl=${lingua}&gl=${lingua === "it" ? "IT" : "US"}`;
+    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(testo)}&sp=EgIQAg%253D%253D&hl=${lingua}&gl=${PAESE[lingua] || "US"}`;
     const pagina = await fetch(url, { headers: YT }).then((r) => r.text()).catch(() => "");
     for (const [, id, nome] of pagina.matchAll(/"channelId":"(UC[\w-]{22})","title":\{"simpleText":"((?:[^"\\]|\\.)+)"/g)) {
       if (!presenti.has(id) && !candidati.some((c) => c.id === id)) candidati.push({ id, nome: nomeSicuro(nome), lingua, cat });
@@ -249,7 +252,7 @@ async function cercaPerArgomento(presenti, ricerche) {
   const candidati = [];
   const aggiungi = (id, nome, lingua) => { if (!presenti.has(id) && !candidati.some((c) => c.id === id)) candidati.push({ id, nome: nomeSicuro(nome), lingua }); };
   const pagine = await Promise.all(ricerche.slice(0, 3).flatMap(([testo, lingua]) => {
-    const base = `https://www.youtube.com/results?search_query=${encodeURIComponent(testo)}&hl=${lingua}&gl=${lingua === "it" ? "IT" : "US"}`;
+    const base = `https://www.youtube.com/results?search_query=${encodeURIComponent(testo)}&hl=${lingua}&gl=${PAESE[lingua] || "US"}`;
     // prima i video più pertinenti (i loro canali di solito sono quelli forti), poi la ricerca dei canali
     return [[`${base}&sp=EgIQAQ%253D%253D`, lingua, "video"], [`${base}&sp=EgIQAg%253D%253D`, lingua, "canali"]].map(([url, l, tipo]) =>
       fetch(url, { headers: YT }).then((r) => r.text()).catch(() => "").then((t) => ({ t, l, tipo })));
@@ -367,7 +370,7 @@ async function laMia(req, env, pathname) {
     const istruzioni = [];
     for (const c of lista.slice(0, 80)) {
       if (posto <= 0) break;
-      if (!/^UC[\w-]{22}$/.test(c.id || "") || presenti.has(c.id) || !["it", "en"].includes(c.lingua) || !(await sezioneValida(c.cat))) continue;
+      if (!/^UC[\w-]{22}$/.test(c.id || "") || presenti.has(c.id) || !LINGUE.includes(c.lingua) || !(await sezioneValida(c.cat))) continue;
       istruzioni.push(env.DB.prepare("INSERT OR IGNORE INTO miei_canali (utente, id, nome, lingua, cat, creato) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(u.id, c.id, String(c.nome || c.id).trim().slice(0, 80), c.lingua, c.cat, new Date().toISOString()));
       presenti.add(c.id); posto--; n++;
@@ -559,7 +562,7 @@ export default {
         const { id, nome, lingua, cat } = corpo;
         const tutte = await elenco(env);
         const dove = tutte.find((c) => c.id === cat);
-        if (!/^UC[\w-]{22}$/.test(id || "") || !dove || !["it", "en"].includes(lingua) || !String(nome || "").trim())
+        if (!/^UC[\w-]{22}$/.test(id || "") || !dove || !LINGUE.includes(lingua) || !String(nome || "").trim())
           return json({ errore: "Dati del canale incompleti." }, 0, 400);
         if (tutte.some((c) => c.canali.some((x) => x.id === id))) return json({ errore: "Il canale è già in elenco." }, 0, 409);
         const mod = await modifiche(env);
@@ -657,7 +660,7 @@ export default {
         const mod = await modifiche(env);
         let n = 0;
         for (const c of canali.slice(0, 80)) {
-          if (!/^UC[\w-]{22}$/.test(c.id || "") || presenti.has(c.id) || !["it", "en"].includes(c.lingua)) continue;
+          if (!/^UC[\w-]{22}$/.test(c.id || "") || presenti.has(c.id) || !LINGUE.includes(c.lingua)) continue;
           mod.aggiunti.push({ id: c.id, nome: String(c.nome || "").trim().slice(0, 80) || c.id, lingua: c.lingua, cat });
           presenti.add(c.id); n++;
         }

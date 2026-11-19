@@ -21,7 +21,7 @@ const T = {
     evidenza: "Featured", evidenzaSotto: "most watched this week, one per topic", sfoglia: "Browse by topic", nArgomenti: (n) => `${n} topics`,
     novita: "New", novitaSotto: "just out", vediTutto: "see all →", fineHome: (n) => `From ${n} hand-picked channels, with no ads on the page and no Shorts.`,
     feedErrore: "Can't read the feeds right now. Try again shortly.",
-    italiano: "Italian", inglese: "English", ultimiPubblicati: "latest videos",
+    italiano: "Italian", inglese: "English", spagnolo: "Spanish", tedesco: "German", francese: "French", ultimiPubblicati: "latest videos",
     tutteSezioni: "All topics", tutteFonti: "All sources", qualsiasiDurata: "Any length", brevi: "Short (< 10 min)", medi: "Medium (10–40 min)", lunghi: "Long (> 40 min)",
     recenti: "Most recent", piuVisti: "Most watched", esploraTitolo: "Explore the archive", sezione: "Topic", durata: "Length", fonte: "Source", ordine: "Order",
     cercaErrore: "Search isn't responding right now. Try again shortly.",
@@ -64,6 +64,8 @@ const T = {
     tvSpenta: "The TV was turned off by the timer. Good night.", riaccendi: "▶ Turn on again", accendo: "Turning on…", nessunVideo: "No videos for this choice.",
     cercaPh: "Search videos…", lingueVideo: "Video language", tutte: "All",
     piede: "Videos from official channels, hand-picked. No ads on the page, no Shorts, no algorithmic recommendations.",
+    sottotitoli: "Subtitles", sottoSpenti: "Off", sottoUi: "Interface language",
+    audioNota: "Audio: when a video has several audio tracks, YouTube plays the one in your language. You can change it in the player: ⚙ › Audio track.",
     impostazioni: "Settings", linguaUi: "Interface language", tema: "Theme", auto: "Auto", chiaro: "Light", scuro: "Dark",
     videoPrec: "Previous video", videoSucc: "Next video",
     mia: "My Lavagna", account: "Account", ciao: (n) => `Hi, ${n}`, esciConto: "Sign out", cancellaConto: "Delete my account",
@@ -76,12 +78,12 @@ const T = {
     miaVuota: "Sign in to add your own channels and topics.",
     aggiungiCanale: "Add a channel", mieiArgomenti: "My topics", mieiCanali: "My channels", nessunMio: "Nothing added yet.",
     mioTag: "mine", inArgomento: "in", entraPrima: "Sign in first.",
-    cookieTesto: "Lavagna has no ads and no tracking. Your preferences (language, theme, watch later) stay on your device. When you play a video, its platform (YouTube's privacy-enhanced player, Vimeo and others) may set its own cookies. Fonts come from Google Fonts, which sees your IP address: choose «Essential only» to use your device's fonts instead.",
+    cookieTesto: "Lavagna shows no ads and does no tracking. Your preferences (language, theme, watch later) stay on your device. When you play a video, its platform (YouTube's privacy-enhanced player, Vimeo and others) may set its own cookies. Fonts come from Google Fonts, which sees your IP address: choose «Essential only» to use your device's fonts instead.",
     cookieTutti: "Accept all", cookieEssenziali: "Essential only", cookieInfo: "Privacy", cookieImpostazioni: "Cookie settings",
     esternoTesto: (f) => `This video is played by ${f}, which may set cookies. You chose essential cookies only.`,
     esternoUnaVolta: "▶ Play this video", esternoSempre: "Always allow",
     privacyTitolo: "Privacy",
-    privacyCorpo: `<p><b>No ads, no tracking, no profiles.</b> Lavagna does not use analytics, advertising or tracking cookies.</p>
+    privacyCorpo: `<p><b>No ads on the page, no tracking, no profiles.</b> Lavagna does not show ads and does not use analytics, advertising or tracking cookies. Videos play in their platform's own player: YouTube may show its ads there (not with YouTube Premium).</p>
       <p><b>Optional account, with a passkey.</b> If you create one, we store only a random id, the name you choose, your passkey's public key and the channels and topics you add. No email, no password. A sign-in cookie keeps you logged in; «Delete my account» erases everything. The passkey library is loaded from jsDelivr only when you sign up or sign in.</p>
       <p><b>On your device.</b> Your language, theme, video-language filter, playback speed and «Watch later» list are saved in your browser's local storage. They never leave your device and you can clear them at any time from your browser.</p>
       <p><b>Video platforms.</b> Videos are played by their own platforms (YouTube via its privacy-enhanced youtube-nocookie.com player, Vimeo, Internet Archive, PeerTube). When you start a video, that platform may set its own cookies and receives your IP address, under its own privacy policy. Thumbnails are images served by the platforms.</p>
@@ -99,7 +101,7 @@ const T = {
     evidenza: "In evidenza", evidenzaSotto: "i più visti della settimana, uno per sezione", sfoglia: "Sfoglia per argomento", nArgomenti: (n) => `${n} argomenti`,
     novita: "Novità", novitaSotto: "appena usciti", vediTutto: "vedi tutto →", fineHome: (n) => `Da ${n} canali scelti a mano, senza pubblicità in pagina e senza Shorts.`,
     feedErrore: "Non riesco a leggere i feed adesso. Riprova tra poco.",
-    italiano: "italiano", inglese: "inglese", ultimiPubblicati: "gli ultimi video pubblicati",
+    italiano: "italiano", inglese: "inglese", spagnolo: "spagnolo", tedesco: "tedesco", francese: "francese", ultimiPubblicati: "gli ultimi video pubblicati",
     tutteSezioni: "Tutte le sezioni", tutteFonti: "Tutte le fonti", qualsiasiDurata: "Qualsiasi durata", brevi: "Brevi (< 10 min)", medi: "Medi (10–40 min)", lunghi: "Lunghi (> 40 min)",
     recenti: "I più recenti", piuVisti: "I più visti", esploraTitolo: "Esplora l'archivio", sezione: "Sezione", durata: "Durata", fonte: "Fonte", ordine: "Ordine",
     cercaErrore: "La ricerca non risponde adesso. Riprova tra poco.",
@@ -142,6 +144,8 @@ const T = {
     tvSpenta: "La TV si è spenta col timer. Buonanotte.", riaccendi: "▶ Riaccendi", accendo: "Accendo…", nessunVideo: "Nessun video per questa scelta.",
     cercaPh: "Cerca fra i video…", lingueVideo: "Lingua dei video", tutte: "Tutte",
     piede: "Video dai canali ufficiali, scelti a mano. Niente pubblicità in pagina, niente Shorts, niente consigli automatici.",
+    sottotitoli: "Sottotitoli", sottoSpenti: "Spenti", sottoUi: "Lingua dell'interfaccia",
+    audioNota: "Audio: se un video ha più tracce audio, YouTube usa quella nella tua lingua. Puoi cambiarla dal lettore: ⚙ › Traccia audio.",
     impostazioni: "Impostazioni", linguaUi: "Lingua dell'interfaccia", tema: "Tema", auto: "Automatico", chiaro: "Chiaro", scuro: "Scuro",
     videoPrec: "Video precedente", videoSucc: "Video successivo",
     mia: "La mia Lavagna", account: "Account", ciao: (n) => `Ciao, ${n}`, esciConto: "Esci", cancellaConto: "Cancella il mio account",
@@ -159,7 +163,7 @@ const T = {
     esternoTesto: (f) => `Questo video è riprodotto da ${f}, che può usare cookie. Hai scelto solo i cookie essenziali.`,
     esternoUnaVolta: "▶ Guarda questo video", esternoSempre: "Consenti sempre",
     privacyTitolo: "Privacy",
-    privacyCorpo: `<p><b>Niente pubblicità, niente tracciamento, niente profili.</b> Lavagna non usa cookie di statistica, pubblicità o tracciamento.</p>
+    privacyCorpo: `<p><b>Niente pubblicità nella pagina, niente tracciamento, niente profili.</b> Lavagna non mostra pubblicità e non usa cookie di statistica, pubblicità o tracciamento. I video girano nel lettore della loro piattaforma: lì YouTube può mostrare i suoi spot (non con YouTube Premium).</p>
       <p><b>Account facoltativo, con passkey.</b> Se lo crei, salviamo solo un id casuale, il nome che scegli, la chiave pubblica della tua passkey e i canali e argomenti che aggiungi. Niente email, niente password. Un cookie d'accesso ti tiene collegato; «Cancella il mio account» cancella tutto. La libreria delle passkey si carica da jsDelivr solo quando ti registri o entri.</p>
       <p><b>Sul tuo dispositivo.</b> Lingua, tema, filtro della lingua dei video, velocità e lista «Da vedere» sono salvati nella memoria locale del browser. Non lasciano mai il tuo dispositivo e puoi cancellarli quando vuoi dal browser.</p>
       <p><b>Piattaforme video.</b> I video sono riprodotti dalle loro piattaforme (YouTube con il lettore a privacy avanzata youtube-nocookie.com, Vimeo, Internet Archive, PeerTube). Quando avvii un video, la piattaforma può usare i suoi cookie e riceve il tuo indirizzo IP, secondo la sua informativa. Le miniature sono immagini servite dalle piattaforme.</p>
@@ -175,6 +179,10 @@ const NOMI_EN = { scienza: "Science", matematica: "Maths", scacchi: "Chess", dib
   ingegneria: "Engineering", tech: "Tech", ai: "AI", auto: "Cars", food: "Food", attualita: "Current affairs", documentari: "Documentaries",
   arte: "Art & architecture", musica: "Music", economia: "Economics", cinema: "Film", diritto: "Law & institutions", fashion: "Fashion", lezioni: "Lectures" };
 const nomeDi = (c) => (ui === "en" && NOMI_EN[c?.id]) || c?.nome || "";
+// sottotitoli: "off", "ui" (lingua dell'interfaccia) oppure un codice di lingua
+const linguaSottotitoli = () => { const v = memo.get("sottotitoli", "off"); return v === "off" ? "" : v === "ui" ? ui : v; };
+const nomeLingua = (l) => t({ it: "italiano", en: "inglese", es: "spagnolo", de: "tedesco", fr: "francese" }[l] || "inglese");
+const opzioniLingua = (scelta = "en") => ["en", "it", "es", "de", "fr"].map((l) => `<option value="${l}"${l === scelta ? " selected" : ""}>${nomeLingua(l)}</option>`).join("");
 const numero = (x) => x.toLocaleString(ui === "it" ? "it-IT" : "en-GB");
 
 // ——— consenso ai cookie (regole europee) ———
@@ -401,7 +409,7 @@ async function vistaCanale(id) {
   const c = categorie.flatMap((k) => k.canali.map((x) => ({ ...x, cat: k }))).find((x) => x.id === id);
   if (!c) return home();
   schede(`c/${c.cat.id}`);
-  const testa = `<h1>${esc(c.nome)}</h1><p class="sotto">${c.cat.segno} ${esc(nomeDi(c.cat))} · ${c.lingua === "it" ? t("italiano") : t("inglese")} · ${t("ultimiPubblicati")}</p>`;
+  const testa = `<h1>${esc(c.nome)}</h1><p class="sotto">${c.cat.segno} ${esc(nomeDi(c.cat))} · ${nomeLingua(c.lingua)} · ${t("ultimiPubblicati")}</p>`;
   vista.innerHTML = testa + attesa();
   const v = c.mio
     ? (await fetch(`/api/mio/feed?cat=${encodeURIComponent(c.cat.id)}`).then((r) => r.json()).catch(() => [])).filter((x) => x.canale === id)
@@ -669,7 +677,7 @@ async function vistaCanali() {
         ${c.gia ? "" : `<form id="aggiungi" class="pannello">
           <input id="nome" value="${esc(c.nome)}" aria-label="${t("nome")}" required>
           <select id="cat" aria-label="${t("categoria")}">${categorie.map((k) => `<option value="${k.id}">${k.segno} ${esc(nomeDi(k))}</option>`).join("")}</select>
-          <select id="lin" aria-label="${t("lingua")}"><option value="it">${t("italiano")}</option><option value="en">${t("inglese")}</option></select>
+          <select id="lin" aria-label="${t("lingua")}">${opzioniLingua("it")}</select>
           <button class="bott on">${t("aggiungi")}</button></form>`}
       </div>`;
       if (!c.gia) $("#aggiungi").onsubmit = async (e) => {
@@ -792,9 +800,15 @@ async function lettoreYT(el, id, vol, cb, controlli = false) {
   return new Promise((ok) => {
     const p = new YT.Player(box, {
       host: "https://www.youtube-nocookie.com", videoId: id,
-      playerVars: { autoplay: 1, rel: 0, playsinline: 1, controls: controlli ? 1 : 0, iv_load_policy: 3, disablekb: controlli ? 0 : 1, hl: ui, cc_lang_pref: ui, cc_load_policy: 0 },
+      playerVars: { autoplay: 1, rel: 0, playsinline: 1, controls: controlli ? 1 : 0, iv_load_policy: 3, disablekb: controlli ? 0 : 1,
+        hl: linguaSottotitoli() || ui, cc_lang_pref: linguaSottotitoli() || ui, cc_load_policy: linguaSottotitoli() ? 1 : 0 },
       events: {
-        onReady: (e) => { e.target.setVolume(vol); e.target.playVideo(); ok(l); },
+        onReady: (e) => {
+          e.target.setVolume(vol); e.target.playVideo(); ok(l);
+          // sottotitoli nella lingua scelta: originali se ci sono, altrimenti tradotti automaticamente da YouTube
+          const ls = linguaSottotitoli();
+          if (ls) setTimeout(() => { try { e.target.loadModule("captions"); e.target.setOption("captions", "track", { languageCode: ls }); } catch {} }, 1500);
+        },
         onStateChange: (e) => { cb.stato(e.data === YT.PlayerState.PLAYING); if (e.data === YT.PlayerState.ENDED) cb.fine(); },
         onError: () => { ok(l); cb.errore(); }, // video non incorporabile: si passa al prossimo
       },
@@ -1119,7 +1133,7 @@ async function vistaMia() {
         <ul>${c.ultimi.map((v) => `<li>${esc(v.titolo)} <small>· ${quando(v.data)}</small></li>`).join("")}</ul>
         ${c.gia ? "" : `<form id="mAggiungi" class="pannello"><input id="mNome" value="${esc(c.nome)}" aria-label="${t("nome")}" required>
           <select id="mCat" aria-label="${t("categoria")}">${opzCat()}</select>
-          <select id="mLin" aria-label="${t("lingua")}"><option value="en">${t("inglese")}</option><option value="it">${t("italiano")}</option></select>
+          <select id="mLin" aria-label="${t("lingua")}">${opzioniLingua("en")}</select>
           <button class="bott on">${t("aggiungi")}</button></form>`}</div>`;
       if (!c.gia) $("#mAggiungi").onsubmit = async (e2) => {
         e2.preventDefault();
@@ -1184,8 +1198,8 @@ function applicaLingua() {
   document.documentElement.lang = ui;
   $("#q").placeholder = t("cercaPh");
   $("#q").setAttribute("aria-label", t("cerca"));
-  document.querySelector(".lingue").setAttribute("aria-label", t("lingueVideo"));
-  document.querySelector('.lingue [data-l="tutte"]').textContent = t("tutte");
+  $("#lingueEtichetta").textContent = t("lingueVideo");
+  $('#linguaVideo option[value="tutte"]').textContent = t("tutte");
   $("#piede").textContent = t("piede");
   $("#linkCookie").textContent = t("cookieImpostazioni");
   if (!$("#cookie").hidden) mostraCookie();
@@ -1197,10 +1211,14 @@ function menuImpostazioni() {
   const tema = memo.get("tema", "auto");
   const scelta = (gruppo, val, nome, on) => `<button data-${gruppo}="${val}" class="${on ? "on" : ""}">${nome}</button>`;
   $("#imposta").innerHTML = `<h4>${t("linguaUi")}</h4><div class="scelte">${scelta("ui", "en", "English", ui === "en")}${scelta("ui", "it", "Italiano", ui === "it")}</div>
-    <h4>${t("tema")}</h4><div class="scelte">${scelta("tema", "auto", t("auto"), tema === "auto")}${scelta("tema", "light", t("chiaro"), tema === "light")}${scelta("tema", "dark", t("scuro"), tema === "dark")}</div>`;
+    <h4>${t("tema")}</h4><div class="scelte">${scelta("tema", "auto", t("auto"), tema === "auto")}${scelta("tema", "light", t("chiaro"), tema === "light")}${scelta("tema", "dark", t("scuro"), tema === "dark")}</div>
+    <h4>${t("sottotitoli")}</h4><select class="scelta-sotto" id="sceltaSotto">${[["off", t("sottoSpenti")], ["ui", t("sottoUi")], ...["en", "it", "es", "de", "fr"].map((l) => [l, nomeLingua(l)])]
+      .map(([v, n]) => `<option value="${v}"${memo.get("sottotitoli", "off") === v ? " selected" : ""}>${n}</option>`).join("")}</select>
+    <p class="nota-audio">${t("audioNota")}</p>`;
   $("#imposta").querySelectorAll("[data-ui]").forEach((b) => b.onclick = () => {
     ui = b.dataset.ui; memo.set("ui", ui); applicaLingua(); menuImpostazioni(); rotta();
   });
+  $("#sceltaSotto").onchange = (e) => { memo.set("sottotitoli", e.target.value); if (location.hash.startsWith("#/v/")) rotta(); };
   $("#imposta").querySelectorAll("[data-tema]").forEach((b) => b.onclick = () => {
     const v = b.dataset.tema; memo.set("tema", v);
     if (v === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v;
@@ -1230,14 +1248,11 @@ caricaCaratteri();
 if (!consenso()) mostraCookie();
 
 // ——— avvio ———
-document.querySelectorAll(".lingue button").forEach((b) => {
-  b.classList.toggle("on", b.dataset.l === lingua);
-  b.onclick = () => {
-    lingua = b.dataset.l; memo.set("lingua", lingua);
-    document.querySelectorAll(".lingue button").forEach((x) => x.classList.toggle("on", x === b));
-    if (!location.hash.startsWith("#/v/") && !location.hash.startsWith("#/tv")) rotta();
-  };
-});
+$("#linguaVideo").value = lingua;
+$("#linguaVideo").onchange = (e) => {
+  lingua = e.target.value; memo.set("lingua", lingua);
+  if (!location.hash.startsWith("#/v/") && !location.hash.startsWith("#/tv")) rotta();
+};
 $("#cerca").onsubmit = (e) => {
   e.preventDefault();
   const q = $("#q").value.trim();

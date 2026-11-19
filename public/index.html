@@ -19,9 +19,11 @@
   <form class="cerca" id="cerca" role="search">
     <input id="q" type="search" placeholder="Search videos…" autocomplete="off" aria-label="Search">
   </form>
-  <div class="lingue" role="group" aria-label="Video language">
-    <button data-l="tutte" class="on">All</button><button data-l="it">IT</button><button data-l="en">EN</button>
-  </div>
+  <label class="lingue"><span class="vh" id="lingueEtichetta">Video language</span>
+    <select id="linguaVideo" aria-labelledby="lingueEtichetta">
+      <option value="tutte">All</option><option value="it">IT</option><option value="en">EN</option>
+      <option value="es">ES</option><option value="de">DE</option><option value="fr">FR</option>
+    </select></label>
   <div class="imposta conto">
     <button id="apriConto" aria-label="Account" title="Account">👤</button>
     <div class="imposta-menu conto-menu" id="conto" hidden></div>
