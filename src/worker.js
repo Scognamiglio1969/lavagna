@@ -492,7 +492,16 @@ export default {
       // dall'indice: nessun limite al numero di canali. Se l'indice è ancora vuoto (appena creato) si ripiega
       // sui feed dal vivo dei primi 40 canali, il massimo che il piano gratuito permette in una richiesta.
       const dalIndice = env.DB ? await videoDiCategoria(env, cat.id).catch(() => []) : [];
-      if (dalIndice.length >= 30) return json(dalIndice, 120);
+      if (dalIndice.length >= 30) {
+        // canali della sezione che nell'indice non hanno ancora video (appena aggiunti o spostati): letti subito dal vivo,
+        // poi la visita li salva nell'indice. Al massimo 30 per volta, dentro le 50 richieste del piano gratuito.
+        const { results } = await env.DB.prepare("SELECT DISTINCT canale FROM video WHERE cat = ?").bind(cat.id).all().catch(() => ({ results: [] }));
+        const conVideo = new Set(results.map((r) => r.canale));
+        const mancanti = cat.canali.filter((c) => !conVideo.has(c.id)).slice(0, 30);
+        if (!mancanti.length) return json(dalIndice, 120);
+        const nuovi = (await Promise.all(mancanti.map((c) => feed(c, cat.id).catch(() => [])))).flat();
+        return json(ordina([...dalIndice, ...nuovi]), 120);
+      }
       const liste = await Promise.all(cat.canali.slice(0, 40).map((c) => feed(c, cat.id).catch(() => [])));
       return json(ordina(liste.flat()), 120);
     }
