@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>
+  // tema scelto (prima di disegnare la pagina, così non lampeggia)
+  try { const t = JSON.parse(localStorage.getItem("tema")); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lavagna</title>
+<meta name="description" content="Hand-picked educational videos: science, maths, chess, history, debates, arts and more. No ads on the page, no Shorts.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23253b32'/><path d='M8 22 Q14 8 24 12' stroke='%23f3efe4' stroke-width='3' fill='none' stroke-linecap='round'/></svg>">
+<!-- i caratteri di Google Fonts si caricano solo con il consenso (app.js): senza, si usano quelli del sistema -->
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="testa">
+  <a class="marchio" href="#/" aria-label="Lavagna, by Massimo Scognamiglio"><span class="nome">Lavagna<span>.</span></span><span class="firma">by Massimo Scognamiglio</span></a>
+  <form class="cerca" id="cerca" role="search">
+    <input id="q" type="search" placeholder="Search videos…" autocomplete="off" aria-label="Search">
+  </form>
+  <div class="lingue" role="group" aria-label="Video language">
+    <button data-l="tutte" class="on">All</button><button data-l="it">IT</button><button data-l="en">EN</button>
+  </div>
+  <div class="imposta">
+    <button id="apriImposta" aria-label="Settings" aria-expanded="false" title="Settings">⚙</button>
+    <div class="imposta-menu" id="imposta" hidden></div>
+  </div>
+</header>
+<nav class="schede" id="schede"></nav>
+<div class="argomenti-pannello" id="argomenti" hidden></div>
+<main id="vista"></main>
+<footer class="piede"><span id="piede">Videos from official channels, hand-picked. No ads on the page, no Shorts, no algorithmic recommendations.</span>
+  <span class="piede-link"><a href="#/privacy" id="linkPrivacy">Privacy</a> · <button class="link" id="linkCookie">Cookie settings</button></span></footer>
+<div class="cookie" id="cookie" hidden role="dialog" aria-live="polite" aria-label="Cookies"></div>
+<script src="/app.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+name = "lavagna"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+# Account Cloudflare SOLO di Lavagna (Gmail), separato da quello di Sbobina: limiti tutti suoi.
+# wrangler usa il token in .env (mai pubblicato).
+account_id = "5171bedd1b2c6e87bbe21a3c606150f7"
+
+[assets]
+directory = "public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[kv_namespaces]]
+binding = "LAVAGNA"
+id = "2da597b97b864a7da9cc1ceab91e8b6a"
+
+# Indice di tutti i video visti dal server (ricerca a parole, filtri, archivio che cresce)
+[[d1_databases]]
+binding = "DB"
+database_name = "lavagna"
+database_id = "e6151428-da55-415d-8757-e060c4d0ad57"
+
+# Ricerca per significato: un vettore per video (modello multilingue bge-m3, 1024 dimensioni)
+[[vectorize]]
+binding = "VETTORI"
+index_name = "lavagna-significato"
+remote = true
+
+[ai]
+binding = "AI"
+remote = true
+
+# Ogni 5 minuti il server aggiorna l'indice a turno (un pezzo di canali per volta)
+[triggers]
+crons = ["*/5 * * * *"]

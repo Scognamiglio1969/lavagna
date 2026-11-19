@@ -1,0 +1,3 @@
+{ "name": "lavagna", "private": true, "type": "module",
+  "scripts": { "dev": "wrangler dev --port 8797 --test-scheduled", "deploy": "wrangler deploy" },
+  "devDependencies": { "wrangler": "^4.40.0" } }
