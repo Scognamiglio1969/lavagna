@@ -65,6 +65,7 @@ const T = {
     cercaPh: "Search videos…", lingueVideo: "Video language", tutte: "All",
     piede: "Videos from official channels, hand-picked. No ads on the page, no Shorts, no algorithmic recommendations.",
     impostazioni: "Settings", linguaUi: "Interface language", tema: "Theme", auto: "Auto", chiaro: "Light", scuro: "Dark",
+    videoPrec: "Previous video", videoSucc: "Next video",
     mia: "My Lavagna", account: "Account", ciao: (n) => `Hi, ${n}`, esciConto: "Sign out", cancellaConto: "Delete my account",
     cancellaConferma: "Delete your account, your passkey and everything you added? This can't be undone.",
     creaConto: "Create account", entraPasskey: "Sign in with a passkey", tuoNome: "Your name or nickname",
@@ -142,6 +143,7 @@ const T = {
     cercaPh: "Cerca fra i video…", lingueVideo: "Lingua dei video", tutte: "Tutte",
     piede: "Video dai canali ufficiali, scelti a mano. Niente pubblicità in pagina, niente Shorts, niente consigli automatici.",
     impostazioni: "Impostazioni", linguaUi: "Lingua dell'interfaccia", tema: "Tema", auto: "Automatico", chiaro: "Chiaro", scuro: "Scuro",
+    videoPrec: "Video precedente", videoSucc: "Video successivo",
     mia: "La mia Lavagna", account: "Account", ciao: (n) => `Ciao, ${n}`, esciConto: "Esci", cancellaConto: "Cancella il mio account",
     cancellaConferma: "Cancello il tuo account, la tua passkey e tutto ciò che hai aggiunto? Non si può annullare.",
     creaConto: "Crea account", entraPasskey: "Entra con la passkey", tuoNome: "Il tuo nome o un nomignolo",
@@ -270,6 +272,14 @@ async function tutti() {
   return liste.flat().filter((v) => !visti.has(v.id) && visti.add(v.id)).sort((a, b) => b.data.localeCompare(a.data));
 }
 const mostrati = new Map(); // video già passati a schermo: aprirli non richiede di ricaricare nulla
+// l'elenco da cui hai aperto un video: dà l'ordine alle frecce «precedente / successivo» del lettore
+let sequenza = [];
+const idDaLink = (a) => decodeURIComponent((a.getAttribute("href") || "").replace(/^#\/v\//, ""));
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("a.vid");
+  const box = a?.closest(".griglia, .lato");
+  if (box) sequenza = [...box.querySelectorAll("a.vid")].map(idDaLink).filter((x) => x && !x.startsWith("http"));
+}, true);
 async function trova(id) {
   if (mostrati.has(id)) return mostrati.get(id);
   for (const p of cacheCat.values()) { const v = (await p.catch(() => [])).find((x) => x.id === id); if (v) return v; }
@@ -534,6 +544,15 @@ async function vistaVideo(id) {
   } else if (v.fonte === "vimeo") pronto(await lettoreVimeo($("#schermo"), v.embed, 100, cb, true));
   else if (v.fonte === "pt") { await lettoreSemplice(v, $("#schermo")); comandi.attiva(false); } // PeerTube: velocità dal suo menu
   document.title = `${v.titolo} — Lavagna`;
+  // frecce: ordine dell'elenco da cui sei arrivato, altrimenti i video dello stesso argomento
+  const elencoFrecce = sequenza.includes(id) ? sequenza : filtra(await categoria(v.cat).catch(() => [])).map((x) => x.id);
+  const i = elencoFrecce.indexOf(id);
+  const prec = i > 0 ? elencoFrecce[i - 1] : null, succ = i >= 0 && i < elencoFrecce.length - 1 ? elencoFrecce[i + 1] : null;
+  if (!qui(`v/${id}`)) return;
+  if (!elencoFrecce.includes(id)) sequenza = elencoFrecce;
+  $("#schermo").insertAdjacentHTML("beforeend",
+    (prec ? `<a class="freccia sx" href="${link("v", prec)}" title="${t("videoPrec")}" aria-label="${t("videoPrec")}">‹</a>` : "")
+    + (succ ? `<a class="freccia dx" href="${link("v", succ)}" title="${t("videoSucc")}" aria-label="${t("videoSucc")}">›</a>` : ""));
   const salvato = () => salvati.some((x) => x.id === id);
   const disegna = () => {
     $("#info").innerHTML = `<h1>${esc(v.titolo)}</h1>

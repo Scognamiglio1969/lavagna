@@ -302,3 +302,11 @@ h2.blocco small { font: 400 13px Inter, sans-serif; color: var(--tenue); margin-
 .canalini a.mio { border-color: var(--accento); color: var(--accento); }
 .mia-modulo { max-width: 460px; }
 @media (max-width: 600px) { .conto-menu { right: -48px; width: min(300px, calc(100vw - 32px)); } }
+/* frecce video precedente / successivo, ai lati del lettore */
+.schermo > a.freccia { position: absolute; top: 50%; transform: translateY(-50%); z-index: 4; width: 46px; height: 72px; display: grid; place-items: center;
+  font: 300 46px/1 system-ui, sans-serif; color: #fff; background: rgb(0 0 0 / .45); border-radius: 10px; opacity: .55; transition: opacity .15s, background .15s; }
+.schermo > a.freccia.sx { left: 10px; }
+.schermo > a.freccia.dx { right: 10px; }
+.schermo:hover > a.freccia, .schermo > a.freccia:focus { opacity: 1; }
+.schermo > a.freccia:hover { background: var(--accento); }
+@media (max-width: 600px) { .schermo > a.freccia { width: 34px; height: 54px; font-size: 34px; opacity: .8; } }
