@@ -1,5 +1,6 @@
 import { CATEGORIE } from "./canali.js";
 import { PROPOSTE } from "./proposte.js";
+import { gestisciConto, utenteDa } from "./conto.js";
 import { lavoroPeriodico, salvaVideo, cerca, statoIndice, videoDiCategoria, videoDiCanale, togliCanale, spostaVideo, home } from "./indice.js";
 
 const CACHE_SECONDI = 1800; // ogni feed si rilegge al massimo ogni mezz'ora
@@ -329,6 +330,115 @@ function passwordGiusta(req, env) {
   return d === 0;
 }
 
+// ——— «La mia Lavagna»: canali e argomenti personali, visibili solo a chi li aggiunge ———
+const MAX_MIEI_CANALI = 300, MAX_MIEI_ARGOMENTI = 30, MAX_RICERCHE_GIORNO = 12;
+async function laMia(req, env, pathname) {
+  const u = await utenteDa(req, env);
+  if (!u) return json({ errore: "accesso" }, 0, 401);
+  const azione = pathname.slice("/api/mio".length) || "/";
+  const corpo = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+  const miei = async () => {
+    const [c, a] = await Promise.all([
+      env.DB.prepare("SELECT id, nome, lingua, cat FROM miei_canali WHERE utente = ? ORDER BY creato").bind(u.id).all(),
+      env.DB.prepare("SELECT id, nome, segno, ricerche FROM miei_argomenti WHERE utente = ? ORDER BY creato").bind(u.id).all(),
+    ]);
+    return { canali: c.results, argomenti: a.results.map((x) => ({ ...x, ricerche: JSON.parse(x.ricerche) })) };
+  };
+  const sezioneValida = async (cat) => CATEGORIE.some((c) => c.id === cat) || (await modifiche(env)).argomenti.some((a) => a.id === cat)
+    || !!(await env.DB.prepare("SELECT 1 FROM miei_argomenti WHERE utente = ? AND id = ?").bind(u.id, cat).first());
+  const presentiPerMe = async () => new Set([...(await elenco(env)).flatMap((c) => c.canali.map((x) => x.id)), ...(await miei()).canali.map((x) => x.id)]);
+  const quanti = async (tabella) => (await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${tabella} WHERE utente = ?`).bind(u.id).first()).n;
+
+  if (azione === "/" && req.method === "GET") return json({ nome: u.nome, ...(await miei()) });
+
+  if (azione === "/risolvi") {
+    const c = await risolvi(String(corpo.testo || "")).catch(() => null);
+    if (!c) return json({ errore: "Not found. Try the channel page link or its @handle." }, 0, 404);
+    const gia = (await elenco(env)).find((k) => k.canali.some((x) => x.id === c.id));
+    const mio = (await miei()).canali.find((x) => x.id === c.id);
+    return json({ ...c, gia: gia ? gia.nome : mio ? mio.cat : null });
+  }
+
+  if (azione === "/aggiungi" || azione === "/aggiungi-molti") {
+    const lista = azione === "/aggiungi" ? [corpo] : (Array.isArray(corpo.canali) ? corpo.canali.map((x) => ({ ...x, cat: corpo.cat })) : []);
+    const presenti = await presentiPerMe();
+    let posto = MAX_MIEI_CANALI - (await quanti("miei_canali")), n = 0;
+    const istruzioni = [];
+    for (const c of lista.slice(0, 80)) {
+      if (posto <= 0) break;
+      if (!/^UC[\w-]{22}$/.test(c.id || "") || presenti.has(c.id) || !["it", "en"].includes(c.lingua) || !(await sezioneValida(c.cat))) continue;
+      istruzioni.push(env.DB.prepare("INSERT OR IGNORE INTO miei_canali (utente, id, nome, lingua, cat, creato) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(u.id, c.id, String(c.nome || c.id).trim().slice(0, 80), c.lingua, c.cat, new Date().toISOString()));
+      presenti.add(c.id); posto--; n++;
+    }
+    if (istruzioni.length) await env.DB.batch(istruzioni);
+    return json({ aggiunti: n, ...(posto <= 0 ? { pieno: true } : {}) });
+  }
+
+  if (azione === "/togli") {
+    await env.DB.prepare("DELETE FROM miei_canali WHERE utente = ? AND id = ?").bind(u.id, String(corpo.id || "")).run();
+    return json({ ok: true });
+  }
+  if (azione === "/sposta") {
+    if (!(await sezioneValida(corpo.cat))) return json({ errore: "Unknown topic." }, 0, 400);
+    await env.DB.prepare("UPDATE miei_canali SET cat = ? WHERE utente = ? AND id = ?").bind(corpo.cat, u.id, String(corpo.id || "")).run();
+    return json({ ok: true });
+  }
+
+  if (azione === "/argomento-crea") {
+    const nome = String(corpo.nome || "").trim().slice(0, 40);
+    if (!nome) return json({ errore: "Type a name for the topic." }, 0, 400);
+    if ((await quanti("miei_argomenti")) >= MAX_MIEI_ARGOMENTI) return json({ errore: `You already have ${MAX_MIEI_ARGOMENTI} topics.` }, 0, 400);
+    const usati = new Set([...(await elenco(env)).map((c) => c.id), ...(await miei()).argomenti.map((a) => a.id)]);
+    let id = "m-" + (lettere(nome) || "argomento");
+    while (usati.has(id)) id += "-2";
+    const parole = (testo) => String(testo || "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 3);
+    let it = parole(corpo.it), en = parole(corpo.en);
+    if (!it.length || !en.length) { const ai = await paroleChiave(env, nome); if (!it.length) it = ai.it; if (!en.length) en = ai.en; }
+    const ricerche = [...it.map((t) => [t, "it"]), ...en.map((t) => [t, "en"])];
+    await env.DB.prepare("INSERT INTO miei_argomenti (utente, id, nome, segno, ricerche, creato) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(u.id, id, nome, String(corpo.segno || "◆").trim().slice(0, 2) || "◆", JSON.stringify(ricerche), new Date().toISOString()).run();
+    return json({ id, ricerche });
+  }
+
+  if (azione === "/argomento-cerca") {
+    // la ricerca usa YouTube e l'AI: qualche ricerca al giorno a testa
+    const chiave = `cerche:${u.id}:${new Date().toISOString().slice(0, 10)}`;
+    const fatte = Number(await env.LAVAGNA.get(chiave)) || 0;
+    if (fatte >= MAX_RICERCHE_GIORNO) return json({ errore: "You've used today's channel searches. Try again tomorrow." }, 0, 429);
+    await env.LAVAGNA.put(chiave, String(fatte + 1), { expirationTtl: 86400 });
+    const mio = (await miei()).argomenti.find((a) => a.id === corpo.id);
+    const fisso = (await modifiche(env)).argomenti.find((a) => a.id === corpo.id);
+    const ricerche = mio?.ricerche || fisso?.ricerche || RICERCHE[corpo.id];
+    if (!ricerche) return json({ errore: "Unknown topic." }, 0, 404);
+    const parte = Number(corpo.parte) === 1 ? 1 : 0;
+    const perLingua = ricerche.filter(([, l]) => l === (parte ? "en" : "it"));
+    const presenti = await presentiPerMe();
+    const trovati = await cercaPerArgomento(presenti, perLingua.length ? perLingua : ricerche.slice(parte * 3, parte * 3 + 3));
+    const candidati = await filtraConAI(env, mio?.nome || corpo.id, trovati);
+    return json({ candidati });
+  }
+
+  if (azione === "/argomento-togli") {
+    const id = String(corpo.id || "");
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM miei_canali WHERE utente = ? AND cat = ?").bind(u.id, id),
+      env.DB.prepare("DELETE FROM miei_argomenti WHERE utente = ? AND id = ?").bind(u.id, id),
+    ]);
+    return json({ ok: true });
+  }
+
+  // i video dei miei canali di una sezione, letti dal vivo (non entrano nell'indice di tutti)
+  if (azione === "/feed") {
+    const cat = new URL(req.url).searchParams.get("cat") || "";
+    const { results } = await env.DB.prepare("SELECT id, nome, lingua, cat FROM miei_canali WHERE utente = ? AND cat = ? ORDER BY creato LIMIT 40").bind(u.id, cat).all();
+    const liste = await Promise.all(results.map((c) => feed(c, cat).catch(() => [])));
+    return json(ordina(liste.flat()));
+  }
+
+  return json({ errore: "azione sconosciuta" }, 0, 404);
+}
+
 export default {
   async fetch(req, env, ctx) {
     const { pathname } = new URL(req.url);
@@ -363,6 +473,8 @@ export default {
   },
 
   async rispondi(req, env, pathname) {
+    if (pathname.startsWith("/api/conto")) return gestisciConto(req, env, pathname);
+    if (pathname.startsWith("/api/mio")) return laMia(req, env, pathname);
     if (pathname === "/api/cerca") {
       const p = Object.fromEntries(new URL(req.url).searchParams);
       return json(await cerca(env, p), p.q ? 300 : 120);

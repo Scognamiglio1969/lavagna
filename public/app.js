@@ -65,12 +65,23 @@ const T = {
     cercaPh: "Search videos…", lingueVideo: "Video language", tutte: "All",
     piede: "Videos from official channels, hand-picked. No ads on the page, no Shorts, no algorithmic recommendations.",
     impostazioni: "Settings", linguaUi: "Interface language", tema: "Theme", auto: "Auto", chiaro: "Light", scuro: "Dark",
+    mia: "My Lavagna", account: "Account", ciao: (n) => `Hi, ${n}`, esciConto: "Sign out", cancellaConto: "Delete my account",
+    cancellaConferma: "Delete your account, your passkey and everything you added? This can't be undone.",
+    creaConto: "Create account", entraPasskey: "Sign in with a passkey", tuoNome: "Your name or nickname",
+    passkeySpiega: "No email, no password: you sign in with Face ID, Touch ID, your fingerprint or a security key (a passkey).",
+    passkeyNo: "This browser doesn't support passkeys.", passkeyAnnullata: "Cancelled. Try again when you're ready.",
+    passkeyErrore: "The passkey didn't work. Try again.", troppe: "Too many accounts from this connection today. Try again tomorrow.",
+    miaSotto: "Your own channels and topics, on top of everyone's. Only you see them.",
+    miaVuota: "Sign in to add your own channels and topics.",
+    aggiungiCanale: "Add a channel", mieiArgomenti: "My topics", mieiCanali: "My channels", nessunMio: "Nothing added yet.",
+    mioTag: "mine", inArgomento: "in", entraPrima: "Sign in first.",
     cookieTesto: "Lavagna has no ads and no tracking. Your preferences (language, theme, watch later) stay on your device. Videos are played by YouTube, Vimeo and other platforms, and fonts come from Google Fonts: these may set their own cookies or see your IP address.",
     cookieTutti: "Accept all", cookieEssenziali: "Essential only", cookieInfo: "Privacy", cookieImpostazioni: "Cookie settings",
     esternoTesto: (f) => `This video is played by ${f}, which may set cookies. You chose essential cookies only.`,
     esternoUnaVolta: "▶ Play this video", esternoSempre: "Always allow",
     privacyTitolo: "Privacy",
-    privacyCorpo: `<p><b>No ads, no tracking, no profiles.</b> Lavagna does not use analytics, advertising or tracking cookies, and has no accounts.</p>
+    privacyCorpo: `<p><b>No ads, no tracking, no profiles.</b> Lavagna does not use analytics, advertising or tracking cookies.</p>
+      <p><b>Optional account, with a passkey.</b> If you create one, we store only a random id, the name you choose, your passkey's public key and the channels and topics you add. No email, no password. A sign-in cookie keeps you logged in; «Delete my account» erases everything. The passkey library is loaded from jsDelivr only when you sign up or sign in.</p>
       <p><b>On your device.</b> Your language, theme, video-language filter, playback speed and «Watch later» list are saved in your browser's local storage. They never leave your device and you can clear them at any time from your browser.</p>
       <p><b>Third parties, only with your consent.</b> Videos are played by their own platforms (YouTube via its privacy-enhanced youtube-nocookie.com player, Vimeo, Internet Archive, PeerTube); fonts come from Google Fonts. These services may set cookies or receive your IP address. If you choose «Essential only», fonts aren't loaded and each video asks before loading an external player. Thumbnails are images served by the platforms.</p>
       <p><b>Server.</b> The site runs on Cloudflare, which processes standard technical data (such as your IP address) to deliver the pages. Lavagna keeps no logs of who watches what.</p>
@@ -130,12 +141,23 @@ const T = {
     cercaPh: "Cerca fra i video…", lingueVideo: "Lingua dei video", tutte: "Tutte",
     piede: "Video dai canali ufficiali, scelti a mano. Niente pubblicità in pagina, niente Shorts, niente consigli automatici.",
     impostazioni: "Impostazioni", linguaUi: "Lingua dell'interfaccia", tema: "Tema", auto: "Automatico", chiaro: "Chiaro", scuro: "Scuro",
+    mia: "La mia Lavagna", account: "Account", ciao: (n) => `Ciao, ${n}`, esciConto: "Esci", cancellaConto: "Cancella il mio account",
+    cancellaConferma: "Cancello il tuo account, la tua passkey e tutto ciò che hai aggiunto? Non si può annullare.",
+    creaConto: "Crea account", entraPasskey: "Entra con la passkey", tuoNome: "Il tuo nome o un nomignolo",
+    passkeySpiega: "Niente email, niente password: entri con Face ID, Touch ID, l'impronta o una chiave di sicurezza (una passkey).",
+    passkeyNo: "Questo browser non supporta le passkey.", passkeyAnnullata: "Annullato. Riprova quando vuoi.",
+    passkeyErrore: "La passkey non ha funzionato. Riprova.", troppe: "Troppi account da questa connessione oggi. Riprova domani.",
+    miaSotto: "I tuoi canali e argomenti, in aggiunta a quelli di tutti. Li vedi solo tu.",
+    miaVuota: "Entra per aggiungere i tuoi canali e argomenti.",
+    aggiungiCanale: "Aggiungi un canale", mieiArgomenti: "I miei argomenti", mieiCanali: "I miei canali", nessunMio: "Ancora niente.",
+    mioTag: "mio", inArgomento: "in", entraPrima: "Prima entra.",
     cookieTesto: "Lavagna non ha pubblicità né tracciamento. Le tue preferenze (lingua, tema, da vedere) restano sul tuo dispositivo. I video sono riprodotti da YouTube, Vimeo e altre piattaforme, e i caratteri arrivano da Google Fonts: questi servizi possono usare i loro cookie o vedere il tuo indirizzo IP.",
     cookieTutti: "Accetta tutti", cookieEssenziali: "Solo essenziali", cookieInfo: "Privacy", cookieImpostazioni: "Impostazioni cookie",
     esternoTesto: (f) => `Questo video è riprodotto da ${f}, che può usare cookie. Hai scelto solo i cookie essenziali.`,
     esternoUnaVolta: "▶ Guarda questo video", esternoSempre: "Consenti sempre",
     privacyTitolo: "Privacy",
-    privacyCorpo: `<p><b>Niente pubblicità, niente tracciamento, niente profili.</b> Lavagna non usa cookie di statistica, pubblicità o tracciamento, e non ha account.</p>
+    privacyCorpo: `<p><b>Niente pubblicità, niente tracciamento, niente profili.</b> Lavagna non usa cookie di statistica, pubblicità o tracciamento.</p>
+      <p><b>Account facoltativo, con passkey.</b> Se lo crei, salviamo solo un id casuale, il nome che scegli, la chiave pubblica della tua passkey e i canali e argomenti che aggiungi. Niente email, niente password. Un cookie d'accesso ti tiene collegato; «Cancella il mio account» cancella tutto. La libreria delle passkey si carica da jsDelivr solo quando ti registri o entri.</p>
       <p><b>Sul tuo dispositivo.</b> Lingua, tema, filtro della lingua dei video, velocità e lista «Da vedere» sono salvati nella memoria locale del browser. Non lasciano mai il tuo dispositivo e puoi cancellarli quando vuoi dal browser.</p>
       <p><b>Servizi esterni, solo col tuo consenso.</b> I video sono riprodotti dalle loro piattaforme (YouTube con il lettore a privacy avanzata youtube-nocookie.com, Vimeo, Internet Archive, PeerTube); i caratteri arrivano da Google Fonts. Questi servizi possono usare cookie o ricevere il tuo indirizzo IP. Se scegli «Solo essenziali», i caratteri non vengono caricati e ogni video chiede prima di aprire un lettore esterno. Le miniature sono immagini servite dalle piattaforme.</p>
       <p><b>Server.</b> Il sito gira su Cloudflare, che tratta i dati tecnici di base (come l'indirizzo IP) per consegnare le pagine. Lavagna non tiene registri di chi guarda cosa.</p>
@@ -192,7 +214,21 @@ const visti = new Set(memo.get("visti", []));
 let salvati = memo.get("salvati", []); // video interi, così si vedono anche dopo che escono dal feed
 
 const cacheCat = new Map();
-let categorie = [];
+let categorie = [], categorieTutti = [];
+let io = null; // { nome, canali, argomenti } quando sei entrato
+// le categorie di tutti, più (solo per te) i tuoi canali e i tuoi argomenti
+function unisciMiei() {
+  const base = categorieTutti.map((c) => ({ ...c, canali: [...c.canali] }));
+  if (io) {
+    for (const a of io.argomenti) base.push({ id: a.id, nome: a.nome, segno: a.segno, canali: [], creato: true, mio: true });
+    for (const k of io.canali) base.find((c) => c.id === k.cat)?.canali.push({ id: k.id, nome: k.nome, lingua: k.lingua, mio: true });
+  }
+  categorie = base;
+}
+async function caricaIo() {
+  try { const r = await fetch("/api/mio"); io = r.ok ? await r.json() : null; } catch { io = null; }
+  unisciMiei();
+}
 
 const esc = (s = "") => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const quando = (iso) => {
@@ -283,7 +319,8 @@ function schede(attiva) {
   $("#schede").innerHTML = voce("", t("tutto"), "✦")
     + `<button class="arg-apri${cat ? " on" : ""}" id="apriArgomenti" aria-expanded="false" aria-controls="argomenti">
         <span class="s">${cat ? cat.segno : "▦"}</span>${cat ? esc(nomeDi(cat)) : t("argomenti")} <span class="freccia">▾</span></button>`
-    + voce("tv", t("tv"), "▶") + voce("esplora", t("esplora"), "⌕") + voce("salvati", t("daVedere"), "★") + voce("canali", t("canali"), "+");
+    + voce("tv", t("tv"), "▶") + voce("esplora", t("esplora"), "⌕") + voce("salvati", t("daVedere"), "★")
+    + (io ? voce("mia", t("mia"), "◎") : "") + voce("canali", t("canali"), "+");
   const pannello = $("#argomenti");
   pannello.hidden = true;
   $("#apriArgomenti").onclick = (e) => {
@@ -332,10 +369,15 @@ async function vistaCategoria(id) {
   schede(`c/${id}`);
   const canali = c.canali.filter((x) => lingua === "tutte" || x.lingua === lingua);
   const testa = `<h1>${c.segno} ${esc(nomeDi(c))}</h1>
-    <div class="canalini">${canali.map((x) => `<a href="${link("ch", x.id)}">${esc(x.nome)} <small>${x.lingua.toUpperCase()}</small></a>`).join("")}</div>`;
+    <div class="canalini">${canali.map((x) => `<a href="${link("ch", x.id)}"${x.mio ? ' class="mio"' : ""}>${esc(x.nome)} <small>${x.lingua.toUpperCase()}</small></a>`).join("")}</div>`;
   vista.innerHTML = testa + attesa();
   try {
-    const v = await categoria(id);
+    const haMiei = c.canali.some((x) => x.mio);
+    const [tuttiV, mieiV] = await Promise.all([
+      c.mio ? [] : categoria(id),
+      haMiei ? fetch(`/api/mio/feed?cat=${encodeURIComponent(id)}`).then((r) => (r.ok ? r.json() : [])).catch(() => []) : [],
+    ]);
+    const v = [...tuttiV, ...mieiV].sort((a, b) => b.data.localeCompare(a.data));
     if (!qui(`c/${id}`)) return;
     vista.innerHTML = testa + griglia(filtra(v), false);
   } catch { vista.innerHTML = testa + `<p class="vuoto">${t("feedErrore")}</p>`; }
@@ -347,7 +389,9 @@ async function vistaCanale(id) {
   schede(`c/${c.cat.id}`);
   const testa = `<h1>${esc(c.nome)}</h1><p class="sotto">${c.cat.segno} ${esc(nomeDi(c.cat))} · ${c.lingua === "it" ? t("italiano") : t("inglese")} · ${t("ultimiPubblicati")}</p>`;
   vista.innerHTML = testa + attesa();
-  const v = await prendi(`/api/canale/${encodeURIComponent(id)}`).catch(() => []);
+  const v = c.mio
+    ? (await fetch(`/api/mio/feed?cat=${encodeURIComponent(c.cat.id)}`).then((r) => r.json()).catch(() => [])).filter((x) => x.canale === id)
+    : await prendi(`/api/canale/${encodeURIComponent(id)}`).catch(() => []);
   if (!qui(`ch/${id}`)) return;
   vista.innerHTML = testa + griglia(v, false);
 }
@@ -518,7 +562,8 @@ async function gestione(azione, corpo = {}) {
   return d;
 }
 async function ricarica() {
-  categorie = await prendi("/api/categorie");
+  categorieTutti = await prendi("/api/categorie");
+  await caricaIo();
   cacheCat.clear();
 }
 
@@ -654,14 +699,21 @@ async function mostraProposte() {
 }
 
 // Prima ricerca di canali per un argomento: elenco da spuntare, poi «Aggiungi i selezionati»
-async function cercaCanaliPer(cat, box) {
+// chiamate della «mia Lavagna» (col cookie d'accesso, niente password)
+async function mio(azione, corpo = {}) {
+  const r = await fetch(`/api/mio/${azione}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(corpo) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(r.status === 401 ? t("entraPrima") : d.errore || t("qualcosa"));
+  return d;
+}
+async function cercaCanaliPer(cat, box, chiama = gestione) {
   const c = categorie.find((x) => x.id === cat);
   box.innerHTML = `<p class="sotto">${t("cercoCanaliIt", esc(nomeDi(c) || cat))}</p>`;
   try {
     // due passate: ricerche in italiano, poi in inglese (ognuna controlla fino a 43 canali)
-    const a = await gestione("argomento-cerca", { id: cat, parte: 0 });
+    const a = await chiama("argomento-cerca", { id: cat, parte: 0 });
     box.querySelector("p").textContent = t("trovatiIt", a.candidati.length);
-    const b = await gestione("argomento-cerca", { id: cat, parte: 1 }).catch(() => ({ candidati: [] }));
+    const b = await chiama("argomento-cerca", { id: cat, parte: 1 }).catch(() => ({ candidati: [] }));
     const candidati = [...a.candidati, ...b.candidati.filter((x) => !a.candidati.some((y) => y.id === x.id))];
     if (!candidati.length) { box.innerHTML = `<p class="sotto">${t("nessunCanale")}</p>`; return; }
     const n = (x) => x >= 1e6 ? t("milioni", x) : x >= 1e3 ? `${Math.round(x / 1e3)}k` : String(x);
@@ -675,7 +727,7 @@ async function cercaCanaliPer(cat, box) {
     box.querySelector("#aggiungiScelti").onclick = async () => {
       const scelti = [...box.querySelectorAll("input[data-i]:checked")].map((x) => candidati[Number(x.dataset.i)]);
       try {
-        const r = await gestione("aggiungi-molti", { cat, canali: scelti.map(({ id, nome, lingua }) => ({ id, nome, lingua })) });
+        const r = await chiama("aggiungi-molti", { cat, canali: scelti.map(({ id, nome, lingua }) => ({ id, nome, lingua })) });
         await ricarica();
         box.innerHTML = `<p class="sotto">${t("aggiunti", r.aggiunti, cat)}</p>`;
       } catch (err) { alert(err.message); }
@@ -942,6 +994,141 @@ async function vistaTV() {
   info();
 }
 
+// ——— account con passkey ———
+let libPasskey = null;
+const passkeyLib = () => (libPasskey ||= import("https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/+esm"));
+async function post(url, corpo) {
+  const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(corpo) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.errore || "passkey");
+  return d;
+}
+function erroreConto(e) {
+  if (e?.name === "NotAllowedError" || e?.name === "AbortError") return t("passkeyAnnullata");
+  if (e?.message === "troppe") return t("troppe");
+  return t("passkeyErrore");
+}
+async function registrati(nome) {
+  const lib = await passkeyLib();
+  if (!lib.browserSupportsWebAuthn()) throw new Error(t("passkeyNo"));
+  const { sfida, opzioni } = await post("/api/conto/registra-inizio", { nome });
+  const risposta = await lib.startRegistration({ optionsJSON: opzioni });
+  await post("/api/conto/registra-fine", { sfida, risposta });
+}
+async function entra() {
+  const lib = await passkeyLib();
+  if (!lib.browserSupportsWebAuthn()) throw new Error(t("passkeyNo"));
+  const { sfida, opzioni } = await post("/api/conto/entra-inizio", {});
+  const risposta = await lib.startAuthentication({ optionsJSON: opzioni });
+  await post("/api/conto/entra-fine", { sfida, risposta });
+}
+async function dopoAccesso() { await caricaIo(); disegnaConto(); location.hash = "#/mia"; rotta(); }
+function moduloConto(dove, msgSel) {
+  dove.innerHTML = `<p class="sotto">${t("passkeySpiega")}</p>
+    <form class="pannello" data-reg><input name="nome" placeholder="${t("tuoNome")}" required minlength="2" maxlength="40" autocomplete="nickname">
+      <button class="bott on">${t("creaConto")}</button></form>
+    <p><button class="bott" data-entra>🔑 ${t("entraPasskey")}</button> <span class="msg" ${msgSel}></span></p>`;
+  const msg = dove.querySelector(".msg");
+  dove.querySelector("[data-reg]").onsubmit = async (e) => {
+    e.preventDefault(); msg.textContent = "";
+    try { await registrati(new FormData(e.target).get("nome")); await dopoAccesso(); } catch (err) { msg.textContent = err.message === t("passkeyNo") ? err.message : erroreConto(err); }
+  };
+  dove.querySelector("[data-entra]").onclick = async () => {
+    msg.textContent = "";
+    try { await entra(); await dopoAccesso(); } catch (err) { msg.textContent = err.message === t("passkeyNo") ? err.message : erroreConto(err); }
+  };
+}
+function disegnaConto() {
+  const b = $("#apriConto");
+  b.textContent = io ? io.nome.slice(0, 1).toUpperCase() : "👤";
+  b.classList.toggle("dentro", !!io);
+  b.title = io ? t("ciao", io.nome) : t("account");
+  b.setAttribute("aria-label", b.title);
+}
+function menuConto() {
+  const m = $("#conto");
+  if (io) {
+    m.innerHTML = `<h4>${esc(t("ciao", io.nome))}</h4><p><a class="bott on" href="#/mia">${t("mia")}</a></p>
+      <p><button class="link" data-esci>${t("esciConto")}</button></p>`;
+    m.querySelector("[data-esci]").onclick = async () => { await fetch("/api/conto/esci", { method: "POST" }); io = null; unisciMiei(); disegnaConto(); m.hidden = true; rotta(); };
+  } else moduloConto(m, "");
+  m.querySelectorAll("a").forEach((a) => a.addEventListener("click", () => { m.hidden = true; }));
+}
+
+async function vistaMia() {
+  schede("mia");
+  if (!io) {
+    vista.innerHTML = `<h1>${t("mia")}</h1><p class="sotto">${t("miaVuota")}</p><div id="modulo" class="mia-modulo"></div>`;
+    moduloConto($("#modulo"), "");
+    return;
+  }
+  const opzCat = (scelto = "") => categorie.map((k) => `<option value="${k.id}"${k.id === scelto ? " selected" : ""}>${k.segno} ${esc(nomeDi(k))}</option>`).join("");
+  vista.innerHTML = `<h1>${t("mia")}</h1><p class="sotto">${t("miaSotto")} <button class="link" id="cancella">${t("cancellaConto")}</button></p>
+    <section class="nuovo-argomento"><h2>${t("aggiungiCanale")}</h2>
+      <form class="pannello" id="mTrova"><input id="mTesto" placeholder="${t("linkCanale")}" required><button class="bott on">${t("cerca")}</button><span class="msg" id="mMsg"></span></form>
+      <div id="mTrovato"></div></section>
+    <section class="nuovo-argomento"><h2>${t("nuovoArgomento")}</h2><p class="sotto">${t("nuovoSotto")}</p>
+      <form class="pannello" id="mArgomento">
+        <input name="segno" class="segno" placeholder="◆" maxlength="2" aria-label="${t("simbolo")}">
+        <input name="nome" placeholder="${t("nomeEs")}" required aria-label="${t("nomeArg")}">
+        <button class="bott on">${t("creaCerca")}</button></form>
+      <div id="mCandidati"></div></section>
+    <section class="gruppo"><h2>${t("mieiArgomenti")}</h2>
+      ${io.argomenti.length ? `<ul>${io.argomenti.map((a) => `<li><a href="#/c/${a.id}">${a.segno} ${esc(a.nome)}</a> <small>${io.canali.filter((k) => k.cat === a.id).length}</small>
+        <button class="link" data-cerca-mio="${a.id}">${t("cercaAltri")}</button> <button class="link" data-togli-arg="${a.id}" data-nome="${esc(a.nome)}">${t("togliArg")}</button>
+        <div class="cerca-qui"></div></li>`).join("")}</ul>` : `<p class="sotto">${t("nessunMio")}</p>`}</section>
+    <section class="gruppo"><h2>${t("mieiCanali")}</h2>
+      ${io.canali.length ? `<ul>${io.canali.map((k) => `<li><a href="${link("ch", k.id)}">${esc(k.nome)}</a> <small>${k.lingua.toUpperCase()}</small>
+        <select class="sposta" data-sposta-mio="${k.id}" aria-label="${t("spostaAria", esc(k.nome))}">${opzCat(k.cat)}</select>
+        <button class="link" data-togli-mio="${k.id}" data-nome="${esc(k.nome)}">${t("togli")}</button></li>`).join("")}</ul>` : `<p class="sotto">${t("nessunMio")}</p>`}</section>`;
+  const aggiorna = async () => { await caricaIo(); vistaMia(); };
+  $("#cancella").onclick = async () => {
+    if (!confirm(t("cancellaConferma"))) return;
+    await fetch("/api/conto/cancella", { method: "POST" }); io = null; unisciMiei(); disegnaConto(); location.hash = "#/";
+  };
+  $("#mTrova").onsubmit = async (e) => {
+    e.preventDefault(); $("#mMsg").textContent = t("cerco"); $("#mTrovato").innerHTML = "";
+    try {
+      const c = await mio("risolvi", { testo: $("#mTesto").value });
+      $("#mMsg").textContent = "";
+      $("#mTrovato").innerHTML = `<div class="scheda-canale"><h2>${esc(c.nome)}</h2>
+        ${c.gia ? `<p class="msg">${t("giaInElenco", esc(nomeDi(categorie.find((k) => k.id === c.gia)) || c.gia))}</p>` : `<p class="sotto">${c.quanti ? t("ultimiLunghi", c.quanti) : t("nessunLungo")}</p>`}
+        <ul>${c.ultimi.map((v) => `<li>${esc(v.titolo)} <small>· ${quando(v.data)}</small></li>`).join("")}</ul>
+        ${c.gia ? "" : `<form id="mAggiungi" class="pannello"><input id="mNome" value="${esc(c.nome)}" aria-label="${t("nome")}" required>
+          <select id="mCat" aria-label="${t("categoria")}">${opzCat()}</select>
+          <select id="mLin" aria-label="${t("lingua")}"><option value="en">${t("inglese")}</option><option value="it">${t("italiano")}</option></select>
+          <button class="bott on">${t("aggiungi")}</button></form>`}</div>`;
+      if (!c.gia) $("#mAggiungi").onsubmit = async (e2) => {
+        e2.preventDefault();
+        try { await mio("aggiungi", { id: c.id, nome: $("#mNome").value, cat: $("#mCat").value, lingua: $("#mLin").value }); await aggiorna(); }
+        catch (err) { $("#mMsg").textContent = err.message; }
+      };
+    } catch (err) { $("#mMsg").textContent = err.message; }
+  };
+  $("#mArgomento").onsubmit = async (e) => {
+    e.preventDefault();
+    const box = $("#mCandidati");
+    box.innerHTML = `<p class="sotto">${t("creoArg")}</p>`;
+    try {
+      const { id } = await mio("argomento-crea", Object.fromEntries(new FormData(e.target)));
+      await caricaIo();
+      await cercaCanaliPer(id, box, mio);
+    } catch (err) { box.innerHTML = `<p class="msg">${esc(err.message)}</p>`; }
+  };
+  vista.querySelectorAll("[data-cerca-mio]").forEach((b) => b.onclick = () => cercaCanaliPer(b.dataset.cercaMio, b.closest("li").querySelector(".cerca-qui"), mio));
+  vista.querySelectorAll("[data-togli-arg]").forEach((b) => b.onclick = async () => {
+    if (!confirm(t("togliArgConferma", b.dataset.nome))) return;
+    await mio("argomento-togli", { id: b.dataset.togliArg }).catch((err) => alert(err.message)); await aggiorna();
+  });
+  vista.querySelectorAll("[data-togli-mio]").forEach((b) => b.onclick = async () => {
+    if (!confirm(t("togliConferma", b.dataset.nome))) return;
+    await mio("togli", { id: b.dataset.togliMio }).catch((err) => alert(err.message)); await aggiorna();
+  });
+  vista.querySelectorAll("[data-sposta-mio]").forEach((sel) => sel.onchange = async () => {
+    await mio("sposta", { id: sel.dataset.spostaMio, cat: sel.value }).catch((err) => alert(err.message)); await aggiorna();
+  });
+}
+
 function vistaPrivacy() {
   schede("-");
   vista.innerHTML = `<div class="privacy"><h1>${t("privacyTitolo")}</h1>${t("privacyCorpo")}
@@ -964,6 +1151,7 @@ function rotta() {
   if (tipo === "canali") return vistaCanali();
   if (tipo === "tv") return vistaTV();
   if (tipo === "privacy") return vistaPrivacy();
+  if (tipo === "mia") return vistaMia();
   $("#q").value = "";
   return home();
 }
@@ -979,6 +1167,7 @@ function applicaLingua() {
   $("#linkCookie").textContent = t("cookieImpostazioni");
   if (!$("#cookie").hidden) mostraCookie();
   $("#apriImposta").setAttribute("aria-label", t("impostazioni"));
+  if (categorieTutti.length) { disegnaConto(); unisciMiei(); }
   $("#apriImposta").title = t("impostazioni");
 }
 function menuImpostazioni() {
@@ -995,6 +1184,14 @@ function menuImpostazioni() {
     menuImpostazioni();
   });
 }
+$("#apriConto").onclick = (e) => {
+  e.stopPropagation();
+  const m = $("#conto"), apri = m.hidden;
+  if (apri) menuConto();
+  m.hidden = !apri;
+  $("#imposta").hidden = true;
+};
+document.addEventListener("click", (e) => { const m = $("#conto"); if (!m.hidden && !e.target.closest(".conto")) m.hidden = true; });
 $("#apriImposta").onclick = (e) => {
   e.stopPropagation();
   const m = $("#imposta"), apri = m.hidden;
@@ -1025,5 +1222,7 @@ $("#cerca").onsubmit = (e) => {
   $("#q").blur();
 };
 window.addEventListener("hashchange", rotta);
-categorie = await prendi("/api/categorie");
+categorieTutti = await prendi("/api/categorie");
+await caricaIo();
+disegnaConto();
 rotta();

@@ -23,6 +23,7 @@ No ads on the page. No Shorts. No algorithm pulling you down a rabbit hole. Just
 - 🌙 **Light, dark or automatic** theme.
 - 🏛 **More than YouTube.** Public-domain films from the Internet Archive, NASA footage, Vimeo documentaries, PeerTube.
 - 🔎 **Search the whole archive** by words, topic, length and source — or just browse the most recent and most watched.
+- 🔑 **Your own Lavagna.** Create an account in one tap with a passkey (Face ID, Touch ID, fingerprint — no email, no password) and add your own channels and topics on top of everyone's. Only you see them.
 - 🌱 **It grows by itself.** Every few minutes it indexes new videos and older archives; it even suggests new channels worth adding — and can build a whole new topic on request.
 
 ## Coming next: search by meaning 🧠
@@ -49,7 +50,8 @@ Everything runs on Cloudflare's free tier:
 | **D1** (`migrations/`) | the video index, FTS5 full-text search, counters |
 | **Vectorize** + **Workers AI** (`@cf/baai/bge-m3`) | semantic search (coming next; the index is being built) |
 | **Workers AI** (Mistral Small 3.1, Llama 3.3 70B fallback) | topic keywords and channel vetting |
-| **KV** | channel and topic changes made from the site |
+| **KV** | channel and topic changes made from the site, passkey challenges |
+| **Passkeys** ([SimpleWebAuthn](https://simplewebauthn.dev)) | optional accounts for «My Lavagna», no email or password |
 | **Cron** (every 5 min) | refreshes feeds, fills the index, builds embeddings, reads YouTube archives |
 
 Feeds come from public RSS (YouTube's long-videos-only uploads playlist, so Shorts never appear). An optional **YouTube Data API key** adds durations, view counts and each channel's full back catalogue, slowly and within quota.
@@ -88,4 +90,4 @@ The page itself has no ads and no tracking. Videos play in each platform's own p
 
 ## In italiano
 
-**Lavagna** è una videoteca per imparare, scelta a mano: canali ufficiali e archivi aperti, senza pubblicità nella pagina, senza Shorts e senza consigli automatici. Interfaccia in inglese e in italiano (⚙ in alto a destra), tema chiaro, scuro o automatico. Ricerca per parole (e presto anche per significato), modalità TV con timer di spegnimento, velocità fino a 2× su ogni video, e strumenti per aggiungere canali e argomenti nuovi.
+**Lavagna** è una videoteca per imparare, scelta a mano: canali ufficiali e archivi aperti, senza pubblicità nella pagina, senza Shorts e senza consigli automatici. Account facoltativo con passkey (niente email né password) per aggiungere i propri canali e argomenti. Interfaccia in inglese e in italiano (⚙ in alto a destra), tema chiaro, scuro o automatico. Ricerca per parole (e presto anche per significato), modalità TV con timer di spegnimento, velocità fino a 2× su ogni video, e strumenti per aggiungere canali e argomenti nuovi.

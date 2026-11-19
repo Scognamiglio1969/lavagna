@@ -292,3 +292,13 @@ h2.blocco small { font: 400 13px Inter, sans-serif; color: var(--tenue); margin-
 .piede-link a, .piede-link .link { color: var(--tenue); font-size: 12.5px; text-decoration: underline; }
 .privacy { max-width: 720px; }
 .privacy p { color: var(--inchiostro); }
+/* account */
+.conto > button.dentro { background: var(--accento); border-color: var(--accento); color: #fff; font-weight: 700; font-size: 15px; }
+.conto-menu { width: 300px; }
+.conto-menu p { margin: 0 0 10px; font-size: 13.5px; }
+.conto-menu .pannello { margin-bottom: 10px; }
+.conto-menu .pannello input { flex: 1 1 100%; }
+.conto-menu a.bott { display: inline-block; }
+.canalini a.mio { border-color: var(--accento); color: var(--accento); }
+.mia-modulo { max-width: 460px; }
+@media (max-width: 600px) { .conto-menu { right: -48px; width: min(300px, calc(100vw - 32px)); } }
