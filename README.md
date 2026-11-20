@@ -20,6 +20,8 @@ No ads on the page. No Shorts. No algorithm pulling you down a rabbit hole. Just
 - ⏩ **Your pace.** Every video plays at 1× to 2×, with a sleep timer ("stop at the end of this video") for evening watching.
 - 🗂 **Topics, not a feed.** 20 topics in five groups — browse like a library, not a slot machine.
 - 🌍 **Five languages of content**: English, Italian, Spanish, German, French, with a filter for video language. Interface in English or Italian.
+- ▶ **Search YouTube from Lavagna**: results without Shorts, playable right here. Add a single video or a whole channel to a topic, to your own Lavagna or (for the curator) to everyone's.
+- ↗ **Share a video**: the link shows title and thumbnail in WhatsApp, Telegram or mail, and opens the video in Lavagna.
 - 💬 **Subtitles in your language**: pick a language in ⚙ and videos open with subtitles on (original or auto-translated by YouTube). Videos with several audio tracks play the one in your language.
 - 🌙 **Light, dark or automatic** theme.
 - 🏛 **More than YouTube.** Public-domain films from the Internet Archive, NASA footage, Vimeo documentaries, PeerTube.
@@ -91,4 +93,4 @@ The page itself has no ads and no tracking. Videos play in each platform's own p
 
 ## In italiano
 
-**Lavagna** è una videoteca per imparare, scelta a mano: canali ufficiali e archivi aperti, senza pubblicità nella pagina, senza Shorts e senza consigli automatici. Account facoltativo con passkey (niente email né password) per aggiungere i propri canali e argomenti. Video in italiano, inglese, spagnolo, tedesco e francese, con sottotitoli nella lingua che scegli. Interfaccia in inglese e in italiano (⚙ in alto a destra), tema chiaro, scuro o automatico. Ricerca per parole (e presto anche per significato), modalità TV con timer di spegnimento, velocità fino a 2× su ogni video, e strumenti per aggiungere canali e argomenti nuovi.
+**Lavagna** è una videoteca per imparare, scelta a mano: canali ufficiali e archivi aperti, senza pubblicità nella pagina, senza Shorts e senza consigli automatici. Account facoltativo con passkey (niente email né password) per aggiungere i propri canali e argomenti. Ricerca anche dentro YouTube (senza Shorts) con il pulsante per aggiungere a Lavagna un video o un canale, e link da condividere con titolo e miniatura. Video in italiano, inglese, spagnolo, tedesco e francese, con sottotitoli nella lingua che scegli. Interfaccia in inglese e in italiano (⚙ in alto a destra), tema chiaro, scuro o automatico. Ricerca per parole (e presto anche per significato), modalità TV con timer di spegnimento, velocità fino a 2× su ogni video, e strumenti per aggiungere canali e argomenti nuovi.

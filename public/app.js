@@ -47,6 +47,13 @@ const T = {
     creoArg: "Creating the topic and finding channels: about half a minute…",
     spostoConferma: (n, d) => `Move «${n}» to ${d}?`, togliArgConferma: (n) => `Remove the topic «${n}» and all its channels?`,
     giaInElenco: (n) => `Already listed, in ${n}.`, ultimiLunghi: (n) => `Latest long videos: ${n}.`, nessunLungo: "No recent long videos in the feed: it would stay empty in Lavagna.",
+    suYouTube: "On YouTube", cercaSuYT: (q) => `Search YouTube for «${q}»`, ytBasta: "Stop searching YouTube",
+    ytSotto: "Straight from YouTube, not chosen by Lavagna. No Shorts. Add what deserves a place.", ytErrore: "YouTube isn't answering right now. Try again in a moment.",
+    ytVuoto: "Nothing found on YouTube.", aggiungiA: "＋ Add to Lavagna", giaQui: "✓ In Lavagna",
+    vediCanale: "Channel ›", dove: "Where", perMe: "My Lavagna (only me)", perTutti: "Lavagna for everyone", aggiuntoOk: "Added ✓", giaPresente: "It's already there.",
+    serveConto: "To add videos and channels, make your own Lavagna: free, with a passkey, no email.", creaLaTua: "Make it",
+    nonInLavagna: "Not in Lavagna yet: these are its latest long videos.", condividi: "↗ Share", copiato: "Link copied", copiaLink: "Copy the link:",
+    mieiVideo: "My videos", nessunVideo: "No videos yet. Search for something, then «＋ Add to Lavagna».",
     nome: "Name", categoria: "Topic", lingua: "Language", aggiungi: "Add", togliConferma: (n) => `Remove «${n}» from Lavagna?`,
     nessunaProposta: "No more suggestions for now.", proposteSotto: "new on every visit: add them to grow Lavagna", trovatoOra: " · just found",
     noGrazie: "no thanks", guarda: "watch", aggiunto: "added ✓",
@@ -127,6 +134,13 @@ const T = {
     creoArg: "Creo l'argomento e cerco i canali: ci vuole circa mezzo minuto…",
     spostoConferma: (n, d) => `Sposto «${n}» in ${d}?`, togliArgConferma: (n) => `Tolgo l'argomento «${n}» e tutti i suoi canali?`,
     giaInElenco: (n) => `È già in elenco, in ${n}.`, ultimiLunghi: (n) => `Ultimi video lunghi: ${n}.`, nessunLungo: "Nel feed non ci sono video lunghi recenti: in Lavagna resterebbe vuoto.",
+    suYouTube: "Su YouTube", cercaSuYT: (q) => `Cerca «${q}» su YouTube`, ytBasta: "Smetti di cercare su YouTube",
+    ytSotto: "Direttamente da YouTube, non scelti da Lavagna. Niente Shorts. Aggiungi quello che merita un posto.", ytErrore: "YouTube adesso non risponde. Riprova tra poco.",
+    ytVuoto: "Su YouTube non ho trovato niente.", aggiungiA: "＋ Aggiungi a Lavagna", giaQui: "✓ In Lavagna",
+    vediCanale: "Canale ›", dove: "Dove", perMe: "La mia Lavagna (solo io)", perTutti: "Lavagna per tutti", aggiuntoOk: "Aggiunto ✓", giaPresente: "C'è già.",
+    serveConto: "Per aggiungere video e canali crea la tua Lavagna: gratis, con una passkey, senza email.", creaLaTua: "Creala",
+    nonInLavagna: "Non è ancora in Lavagna: ecco i suoi ultimi video lunghi.", condividi: "↗ Condividi", copiato: "Link copiato", copiaLink: "Copia il link:",
+    mieiVideo: "I miei video", nessunVideo: "Ancora nessun video. Cerca qualcosa, poi «＋ Aggiungi a Lavagna».",
     nome: "Nome", categoria: "Categoria", lingua: "Lingua", aggiungi: "Aggiungi", togliConferma: (n) => `Tolgo «${n}» da Lavagna?`,
     nessunaProposta: "Per ora non ho altre proposte.", proposteSotto: "nuovi a ogni visita: aggiungili per allargare Lavagna", trovatoOra: " · trovato ora",
     noGrazie: "no, grazie", guarda: "guarda", aggiunto: "aggiunto ✓",
@@ -394,7 +408,7 @@ async function vistaCategoria(id) {
     <div class="canalini">${canali.map((x) => `<a href="${link("ch", x.id)}"${x.mio ? ' class="mio"' : ""}>${esc(x.nome)} <small>${x.lingua.toUpperCase()}</small></a>`).join("")}</div>`;
   vista.innerHTML = testa + attesa();
   try {
-    const haMiei = c.canali.some((x) => x.mio);
+    const haMiei = c.canali.some((x) => x.mio) || !!io?.video?.some((x) => x.cat === id);
     const [tuttiV, mieiV] = await Promise.all([
       c.mio ? [] : categoria(id),
       haMiei ? fetch(`/api/mio/feed?cat=${encodeURIComponent(id)}`).then((r) => (r.ok ? r.json() : [])).catch(() => []) : [],
@@ -407,7 +421,7 @@ async function vistaCategoria(id) {
 
 async function vistaCanale(id) {
   const c = categorie.flatMap((k) => k.canali.map((x) => ({ ...x, cat: k }))).find((x) => x.id === id);
-  if (!c) return home();
+  if (!c) return /^UC[\w-]{22}$/.test(id) ? vistaAnteprima(id) : home();
   schede(`c/${c.cat.id}`);
   const testa = `<h1>${esc(c.nome)}</h1><p class="sotto">${c.cat.segno} ${esc(nomeDi(c.cat))} · ${nomeLingua(c.lingua)} · ${t("ultimiPubblicati")}</p>`;
   vista.innerHTML = testa + attesa();
@@ -434,7 +448,9 @@ async function vistaCerca(q = "") {
       <select name="fonte" aria-label="${t("fonte")}">${opz(FONTI(), filtriCerca.fonte)}</select>
       ${q ? "" : `<select name="ordine" aria-label="${t("ordine")}">${opz([["data", t("recenti")], ["viste", t("piuVisti")]], filtriCerca.ordine)}</select>`}
     </form>
+    ${q ? `<section class="su-yt" id="suYT"></section>` : ""}
     <div id="esiti">${attesa()}</div>`;
+  if (q) cercaYouTube(q, $("#suYT"));
   $("#filtri").onchange = (e) => {
     filtriCerca = { ...filtriCerca, [e.target.name]: e.target.value };
     memo.set("filtri", filtriCerca);
@@ -460,6 +476,108 @@ async function vistaCerca(q = "") {
       : `<p class="vuoto">${d.erroreSignificato ? t("significatoErrore") : t("nessunVicino")}</p>`;
   }
   $("#esiti").innerHTML = html;
+}
+
+// ——— cercare dentro YouTube e portare in Lavagna video e canali ———
+const schedaYT = (v) => `<div class="yt-carta">
+  <a class="vid${visti.has(v.id) ? " gia" : ""}" href="${link("v", v.id)}"><div class="pol"><img loading="lazy" src="https://i.ytimg.com/vi/${v.id}/mqdefault.jpg" alt="">
+    ${v.durata ? `<span class="dur">${mmss(v.durata)}</span>` : ""}</div>
+    <div><h3>${esc(v.titolo)}</h3><div class="meta">${esc(v.nomeCanale)}${v.quando ? " · " + esc(v.quando) : ""}${v.viste ? " · " + viste(v.viste) : ""}</div></div></a>
+  <div class="yt-azioni">${v.gia ? `<span class="gia-qui">${t("giaQui")}</span>` : `<button class="bott piccolo" data-agg-video="${v.id}">${t("aggiungiA")}</button>`}
+    <a class="link" href="${link("ch", v.canale)}">${t("vediCanale")}</a></div>
+  <div class="agg-qui"></div></div>`;
+async function cercaYouTube(q, box, forza = false) {
+  if (!forza && !memo.get("ytSempre", false)) {
+    box.innerHTML = `<button class="bott on" id="vaiYT">▶ ${t("cercaSuYT", esc(q))}</button>`;
+    $("#vaiYT").onclick = () => { memo.set("ytSempre", true); cercaYouTube(q, box, true); };
+    return;
+  }
+  box.innerHTML = `<h2 class="blocco">▶ ${t("suYouTube")} <small>${t("ytSotto")}</small></h2>${attesa()}`;
+  let d;
+  try { d = await prendi(`/api/youtube?${new URLSearchParams({ q, lingua: lingua === "tutte" ? "" : lingua, ui })}`); } catch { d = null; }
+  if (!qui(`cerca/${q}`)) return;
+  const testa = `<h2 class="blocco">▶ ${t("suYouTube")} <small>${t("ytSotto")}</small> <button class="link" id="bastaYT">${t("ytBasta")}</button></h2>`;
+  if (!d) { box.innerHTML = testa + `<p class="vuoto">${t("ytErrore")}</p>`; }
+  else if (!d.video.length && !d.canali.length) box.innerHTML = testa + `<p class="vuoto">${t("ytVuoto")}</p>`;
+  else {
+    for (const v of d.video) mostrati.set(v.id, { ...v, data: "", cat: "", fuori: !v.gia });
+    box.innerHTML = testa
+      + (d.canali.length ? `<div class="yt-canali">${d.canali.map((c) => `<div class="yt-canale">
+          <a href="${link("ch", c.id)}"><span class="yt-foto" data-iniziale="${esc((c.nome || "?").trim().charAt(0).toUpperCase())}">${c.foto ? `<img src="${esc(c.foto)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}</span><b>${esc(c.nome)}</b><small>${esc(c.iscritti)}</small></a>
+          ${c.gia ? `<span class="gia-qui">✓ ${esc(nomeCat(c.gia) || "")}</span>` : `<button class="bott piccolo" data-agg-canale="${c.id}" data-nome="${esc(c.nome)}">${t("aggiungiA")}</button>`}
+          <div class="agg-qui"></div></div>`).join("")}</div>` : "")
+      + (d.video.length ? `<div class="griglia">${d.video.map(schedaYT).join("")}</div>` : "");
+    box.querySelectorAll("[data-agg-video]").forEach((b) => b.onclick = () =>
+      pannelloAggiungi(b.closest(".yt-carta").querySelector(".agg-qui"), { tipo: "video", id: b.dataset.aggVideo }, () => b.remove()));
+    box.querySelectorAll("[data-agg-canale]").forEach((b) => b.onclick = () =>
+      pannelloAggiungi(b.closest(".yt-canale").querySelector(".agg-qui"), { tipo: "canale", id: b.dataset.aggCanale, nome: b.dataset.nome }, () => b.remove()));
+  }
+  const basta = $("#bastaYT");
+  if (basta) basta.onclick = () => { memo.set("ytSempre", false); cercaYouTube(q, box); };
+}
+
+// Il modulo «aggiungi»: argomento, lingua e dove (la mia Lavagna, oppure per tutti con la password di gestione)
+function pannelloAggiungi(box, cosa, fatto) {
+  if (!io && !password) {
+    box.innerHTML = `<p class="nota-agg">${t("serveConto")} <a href="#/mia">${t("creaLaTua")}</a></p>`;
+    return;
+  }
+  const linguaBase = lingua !== "tutte" ? lingua : ui;
+  box.innerHTML = `<form class="agg-form">
+      ${io && password ? `<select name="dove" aria-label="${t("dove")}"><option value="mia">${t("perMe")}</option><option value="tutti">${t("perTutti")}</option></select>` : ""}
+      <select name="cat" aria-label="${t("categoria")}"></select>
+      <select name="lin" aria-label="${t("lingua")}">${opzioniLingua(cosa.lingua || linguaBase)}</select>
+      <button class="bott on">${t("aggiungi")}</button><span class="msg"></span></form>`;
+  const f = box.querySelector("form");
+  const dove = () => (f.elements.dove ? f.elements.dove.value : io ? "mia" : "tutti");
+  const riempi = () => {
+    const lista = dove() === "tutti" ? categorieTutti : categorie;
+    f.elements.cat.innerHTML = lista.map((c) => `<option value="${c.id}">${c.segno} ${esc(nomeDi(c))}</option>`).join("");
+  };
+  riempi();
+  if (f.elements.dove) f.elements.dove.onchange = riempi;
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const msg = f.querySelector(".msg");
+    msg.textContent = t("cerco");
+    const corpo = { id: cosa.id, cat: f.elements.cat.value, lingua: f.elements.lin.value, ...(cosa.nome ? { nome: cosa.nome } : {}) };
+    const azione = cosa.tipo === "video" ? "video-aggiungi" : "aggiungi";
+    try {
+      const d = await (dove() === "tutti" ? gestione(azione, corpo) : mio(azione, corpo));
+      if (d.aggiunti === 0) { msg.textContent = t("giaPresente"); return; }
+      await ricarica();
+      box.innerHTML = `<p class="ok-agg">${t("aggiuntoOk")}</p>`;
+      fatto?.();
+    } catch (err) { msg.textContent = err.message; }
+  };
+}
+
+// Condividere: il link /v/ID mostra titolo e miniatura in WhatsApp, Telegram, mail…, poi apre il video in Lavagna
+function avvisa(testo) {
+  const a = document.createElement("div");
+  a.className = "avviso"; a.textContent = testo; a.setAttribute("role", "status");
+  document.body.appendChild(a);
+  setTimeout(() => a.remove(), 2200);
+}
+async function condividi(v) {
+  const url = /^[\w-]{11}$/.test(v.id) ? `${location.origin}/v/${v.id}` : `${location.origin}/#/v/${encodeURIComponent(v.id)}`;
+  if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+    try { await navigator.share({ title: v.titolo, url }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(url); avvisa(t("copiato")); } catch { prompt(t("copiaLink"), url); }
+}
+
+// Un canale non ancora in Lavagna: anteprima con i suoi ultimi video e il pulsante per aggiungerlo
+async function vistaAnteprima(id) {
+  schede("-");
+  vista.innerHTML = attesa();
+  let d;
+  try { d = await prendi(`/api/anteprima/${id}`); } catch { d = null; }
+  if (!qui(`ch/${id}`)) return;
+  if (!d) { vista.innerHTML = `<p class="vuoto">${t("nonTrovato")}</p>`; return; }
+  vista.innerHTML = `<h1>${esc(d.nome)}</h1><p class="sotto">${t("nonInLavagna")}</p>
+    <p><button class="bott on" id="aggCanale">${t("aggiungiA")}</button></p><div id="aggQui"></div>` + griglia(d.video, false);
+  $("#aggCanale").onclick = () => pannelloAggiungi($("#aggQui"), { tipo: "canale", id, nome: d.nome }, () => $("#aggCanale")?.remove());
 }
 
 // ——— lettori per le diverse fonti ———
@@ -541,7 +659,8 @@ async function vistaVideo(id) {
   const pronto = (l) => { if (chiuso) { l.chiudi(); return; } lettore = l; l.velocita?.(memo.get("velocita", 1)); comandi.attiva(!!l.velocita); };
   const permesso = chiediEsterno($("#schermo"), yt ? "YouTube" : nomeFonte({ fonte: id.split(":")[0] === "vm" ? "vimeo" : id.split(":")[0] }));
   if (yt) permesso.then(() => !chiuso && lettoreYT($("#schermo"), id, memo.get("tvVol", 80), cb, true).then(pronto)).catch(() => {});
-  const v = await trova(id);
+  let v = await trova(id);
+  if (!v && yt) v = await prendi(`/api/video/${encodeURIComponent(id)}`).catch(() => null);
   if (!qui(`v/${id}`)) return;
   if (!v) { if (!yt) $("#schermo").innerHTML = `<p class="vuoto">${t("nonTrovato")}</p>`; return; }
   if (!yt) await permesso;
@@ -564,10 +683,16 @@ async function vistaVideo(id) {
   const salvato = () => salvati.some((x) => x.id === id);
   const disegna = () => {
     $("#info").innerHTML = `<h1>${esc(v.titolo)}</h1>
-      <div class="riga"><a class="can" href="${link("ch", v.canale)}">${esc(v.nomeCanale)}</a><span>${quando(v.data)}</span>
-      ${v.viste ? `<span>${viste(v.viste)}</span>` : ""}<a href="#/c/${v.cat}">${esc(nomeCat(v.cat))}</a>
-      <button class="bott${salvato() ? " on" : ""}" id="salva">${salvato() ? t("salvato") : t("salva")}</button></div>
+      <div class="riga">${v.canale ? `<a class="can" href="${link("ch", v.canale)}">${esc(v.nomeCanale)}</a>` : `<span>${esc(v.nomeCanale || "")}</span>`}
+      ${v.data ? `<span>${quando(v.data)}</span>` : v.quando ? `<span>${esc(v.quando)}</span>` : ""}
+      ${v.viste ? `<span>${viste(v.viste)}</span>` : ""}${v.cat && nomeCat(v.cat) ? `<a href="#/c/${v.cat}">${esc(nomeCat(v.cat))}</a>` : ""}
+      <button class="bott${salvato() ? " on" : ""}" id="salva">${salvato() ? t("salvato") : t("salva")}</button>
+      <button class="bott" id="condividi">${t("condividi")}</button>
+      ${v.fuori ? `<button class="bott on" id="aggVideo">${t("aggiungiA")}</button>` : ""}</div>
+      <div id="aggQui"></div>
       ${v.descrizione ? `<div class="descr">${esc(v.descrizione)}</div>` : ""}`;
+    $("#condividi").onclick = () => condividi(v);
+    if ($("#aggVideo")) $("#aggVideo").onclick = () => pannelloAggiungi($("#aggQui"), { tipo: "video", id, lingua: v.lingua }, () => { v.fuori = false; $("#aggVideo")?.remove(); });
     $("#salva").onclick = () => {
       salvati = salvato() ? salvati.filter((x) => x.id !== id) : [v, ...salvati];
       memo.set("salvati", salvati); disegna();
@@ -1114,6 +1239,9 @@ async function vistaMia() {
       ${io.argomenti.length ? `<ul>${io.argomenti.map((a) => `<li><a href="#/c/${a.id}">${a.segno} ${esc(a.nome)}</a> <small>${io.canali.filter((k) => k.cat === a.id).length}</small>
         <button class="link" data-cerca-mio="${a.id}">${t("cercaAltri")}</button> <button class="link" data-togli-arg="${a.id}" data-nome="${esc(a.nome)}">${t("togliArg")}</button>
         <div class="cerca-qui"></div></li>`).join("")}</ul>` : `<p class="sotto">${t("nessunMio")}</p>`}</section>
+    <section class="gruppo"><h2>${t("mieiVideo")}</h2>
+      ${io.video?.length ? `<ul>${io.video.map((k) => `<li><a href="${link("v", k.id)}">${esc(k.titolo)}</a> <small>${esc(k.nomeCanale || "")} · ${esc(nomeCat(k.cat) || k.cat)}</small>
+        <button class="link" data-togli-video="${k.id}" data-nome="${esc(k.titolo)}">${t("togli")}</button></li>`).join("")}</ul>` : `<p class="sotto">${t("nessunVideo")}</p>`}</section>
     <section class="gruppo"><h2>${t("mieiCanali")}</h2>
       ${io.canali.length ? `<ul>${io.canali.map((k) => `<li><a href="${link("ch", k.id)}">${esc(k.nome)}</a> <small>${k.lingua.toUpperCase()}</small>
         <select class="sposta" data-sposta-mio="${k.id}" aria-label="${t("spostaAria", esc(k.nome))}">${opzCat(k.cat)}</select>
@@ -1156,6 +1284,10 @@ async function vistaMia() {
   vista.querySelectorAll("[data-togli-arg]").forEach((b) => b.onclick = async () => {
     if (!confirm(t("togliArgConferma", b.dataset.nome))) return;
     await mio("argomento-togli", { id: b.dataset.togliArg }).catch((err) => alert(err.message)); await aggiorna();
+  });
+  vista.querySelectorAll("[data-togli-video]").forEach((b) => b.onclick = async () => {
+    if (!confirm(t("togliConferma", b.dataset.nome))) return;
+    await mio("video-togli", { id: b.dataset.togliVideo }).catch((err) => alert(err.message)); await aggiorna();
   });
   vista.querySelectorAll("[data-togli-mio]").forEach((b) => b.onclick = async () => {
     if (!confirm(t("togliConferma", b.dataset.nome))) return;

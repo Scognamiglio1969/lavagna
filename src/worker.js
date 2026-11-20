@@ -4,6 +4,7 @@ import { gestisciConto, utenteDa } from "./conto.js";
 
 const LINGUE = ["it", "en", "es", "de", "fr"]; // lingue dei canali
 const PAESE = { it: "IT", es: "ES", de: "DE", fr: "FR" };
+import { cercaSuYouTube, infoVideo, paginaCondivisa } from "./youtube.js";
 import { lavoroPeriodico, salvaVideo, cerca, statoIndice, videoDiCategoria, videoDiCanale, togliCanale, spostaVideo, home } from "./indice.js";
 
 const CACHE_SECONDI = 1800; // ogni feed si rilegge al massimo ogni mezz'ora
@@ -335,18 +336,20 @@ function passwordGiusta(req, env) {
 }
 
 // ——— «La mia Lavagna»: canali e argomenti personali, visibili solo a chi li aggiunge ———
-const MAX_MIEI_CANALI = 300, MAX_MIEI_ARGOMENTI = 30, MAX_RICERCHE_GIORNO = 12;
+const MAX_MIEI_CANALI = 300, MAX_MIEI_ARGOMENTI = 30, MAX_RICERCHE_GIORNO = 12, MAX_MIEI_VIDEO = 500;
+const comeMioVideo = (r) => ({ id: r.id, titolo: r.titolo, canale: r.canale, nomeCanale: r.nome_canale, lingua: r.lingua, cat: r.cat, durata: r.durata, data: r.data || r.creato, viste: 0, mio: true });
 async function laMia(req, env, pathname) {
   const u = await utenteDa(req, env);
   if (!u) return json({ errore: "accesso" }, 0, 401);
   const azione = pathname.slice("/api/mio".length) || "/";
   const corpo = req.method === "POST" ? await req.json().catch(() => ({})) : {};
   const miei = async () => {
-    const [c, a] = await Promise.all([
+    const [c, a, v] = await Promise.all([
       env.DB.prepare("SELECT id, nome, lingua, cat FROM miei_canali WHERE utente = ? ORDER BY creato").bind(u.id).all(),
       env.DB.prepare("SELECT id, nome, segno, ricerche FROM miei_argomenti WHERE utente = ? ORDER BY creato").bind(u.id).all(),
+      env.DB.prepare("SELECT * FROM miei_video WHERE utente = ? ORDER BY creato DESC").bind(u.id).all(),
     ]);
-    return { canali: c.results, argomenti: a.results.map((x) => ({ ...x, ricerche: JSON.parse(x.ricerche) })) };
+    return { canali: c.results, argomenti: a.results.map((x) => ({ ...x, ricerche: JSON.parse(x.ricerche) })), video: v.results.map(comeMioVideo) };
   };
   const sezioneValida = async (cat) => CATEGORIE.some((c) => c.id === cat) || (await modifiche(env)).argomenti.some((a) => a.id === cat)
     || !!(await env.DB.prepare("SELECT 1 FROM miei_argomenti WHERE utente = ? AND id = ?").bind(u.id, cat).first());
@@ -377,6 +380,23 @@ async function laMia(req, env, pathname) {
     }
     if (istruzioni.length) await env.DB.batch(istruzioni);
     return json({ aggiunti: n, ...(posto <= 0 ? { pieno: true } : {}) });
+  }
+
+  // un video singolo trovato su YouTube: le informazioni le legge il server, non si prendono dalla pagina
+  if (azione === "/video-aggiungi") {
+    if (!(await sezioneValida(corpo.cat))) return json({ errore: "Unknown topic." }, 0, 400);
+    if ((await quanti("miei_video")) >= MAX_MIEI_VIDEO) return json({ errore: `You already have ${MAX_MIEI_VIDEO} videos.` }, 0, 400);
+    const v = await infoVideo(env, String(corpo.id || ""));
+    if (!v) return json({ errore: "Video not found." }, 0, 404);
+    const lin = LINGUE.includes(corpo.lingua) ? corpo.lingua : v.lingua || "en";
+    await env.DB.prepare(`INSERT INTO miei_video (utente, id, titolo, canale, nome_canale, lingua, cat, durata, data, creato) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(utente, id) DO UPDATE SET cat = excluded.cat, lingua = excluded.lingua`)
+      .bind(u.id, v.id, v.titolo.slice(0, 200), v.canale || "", (v.nomeCanale || "").slice(0, 80), lin, corpo.cat, v.durata || null, v.data || "", new Date().toISOString()).run();
+    return json({ ok: true });
+  }
+  if (azione === "/video-togli") {
+    await env.DB.prepare("DELETE FROM miei_video WHERE utente = ? AND id = ?").bind(u.id, String(corpo.id || "")).run();
+    return json({ ok: true });
   }
 
   if (azione === "/togli") {
@@ -427,6 +447,7 @@ async function laMia(req, env, pathname) {
     const id = String(corpo.id || "");
     await env.DB.batch([
       env.DB.prepare("DELETE FROM miei_canali WHERE utente = ? AND cat = ?").bind(u.id, id),
+      env.DB.prepare("DELETE FROM miei_video WHERE utente = ? AND cat = ?").bind(u.id, id),
       env.DB.prepare("DELETE FROM miei_argomenti WHERE utente = ? AND id = ?").bind(u.id, id),
     ]);
     return json({ ok: true });
@@ -436,8 +457,11 @@ async function laMia(req, env, pathname) {
   if (azione === "/feed") {
     const cat = new URL(req.url).searchParams.get("cat") || "";
     const { results } = await env.DB.prepare("SELECT id, nome, lingua, cat FROM miei_canali WHERE utente = ? AND cat = ? ORDER BY creato LIMIT 40").bind(u.id, cat).all();
-    const liste = await Promise.all(results.map((c) => feed(c, cat).catch(() => [])));
-    return json(ordina(liste.flat()));
+    const [liste, singoli] = await Promise.all([
+      Promise.all(results.map((c) => feed(c, cat).catch(() => []))),
+      env.DB.prepare("SELECT * FROM miei_video WHERE utente = ? AND cat = ?").bind(u.id, cat).all(),
+    ]);
+    return json(ordina([...liste.flat(), ...singoli.results.map(comeMioVideo)]));
   }
 
   return json({ errore: "azione sconosciuta" }, 0, 404);
@@ -445,7 +469,10 @@ async function laMia(req, env, pathname) {
 
 export default {
   async fetch(req, env, ctx) {
-    const { pathname } = new URL(req.url);
+    const { pathname, origin } = new URL(req.url);
+    // link condiviso: lavagna…/v/ID → anteprima con titolo e miniatura, poi il video in Lavagna
+    const condiviso = pathname.match(/^\/v\/([\w-]{11})\/?$/);
+    if (condiviso) return paginaCondivisa(env, condiviso[1], origin);
 
     // Liste di video: pronte in cache (10 minuti le sezioni, 2–5 il resto), così mille visite non rifanno mille volte lo stesso lavoro.
     // La chiave cambia quando cambiano i canali (aggiunti/tolti), quindi le modifiche si vedono subito.
@@ -484,6 +511,37 @@ export default {
       return json(await cerca(env, p), p.q ? 300 : 120);
     }
     if (pathname === "/api/indice") return json(await statoIndice(env));
+    // ricerca dentro YouTube (senza Shorts): i risultati di una stessa ricerca restano in cache un'ora
+    if (pathname === "/api/youtube") {
+      const p = new URL(req.url).searchParams;
+      const q = (p.get("q") || "").trim().slice(0, 120);
+      if (q.length < 2) return json({ video: [], canali: [] });
+      const chiave = new Request(`https://cache.lavagna/yt?q=${encodeURIComponent(q.toLowerCase())}&l=${p.get("lingua") || ""}&ui=${p.get("ui") || ""}`);
+      const pronta = await caches.default.match(chiave);
+      if (pronta) return pronta;
+      const r = await cercaSuYouTube(q, p.get("lingua") || "", p.get("ui") || "en").catch(() => null);
+      if (!r) return json({ errore: "YouTube non risponde." }, 0, 502);
+      // cosa c'è già in Lavagna
+      const presenti = new Map((await elenco(env)).flatMap((c) => c.canali.map((x) => [x.id, c.id])));
+      const ids = r.video.map((v) => v.id);
+      const gia = ids.length && env.DB ? new Set((await env.DB.prepare(`SELECT id FROM video WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results.map((x) => x.id)) : new Set();
+      for (const v of r.video) { v.gia = gia.has(v.id); v.canaleIn = presenti.get(v.canale) || null; }
+      for (const c of r.canali) c.gia = presenti.get(c.id) || null;
+      const risposta = json(r, 3600);
+      await caches.default.put(chiave, risposta.clone()).catch(() => {});
+      return risposta;
+    }
+    // le informazioni di un video YouTube qualsiasi (anche fuori da Lavagna)
+    // anteprima di un canale non ancora in Lavagna: gli ultimi video lunghi
+    const ma = pathname.match(/^\/api\/anteprima\/(UC[\w-]{22})$/);
+    if (ma) {
+      const xml = await xmlFeed(ma[1]);
+      if (!xml) return json({ errore: "Canale non trovato." }, 0, 404);
+      const nome = tag(xml.split("<entry>")[0], "name") || tag(xml, "name") || tag(xml, "title");
+      return json({ id: ma[1], nome, video: leggiFeed(xml, { id: ma[1], nome, lingua: "" }, "") }, 600);
+    }
+    const mv = pathname.match(/^\/api\/video\/([\w-]{11})$/);
+    if (mv) { const v = await infoVideo(env, mv[1]); return v ? json(v, 3600) : json({ errore: "Video non trovato." }, 0, 404); }
     if (pathname === "/api/home") return json(await home(env, await elenco(env), new URL(req.url).searchParams.get("lingua")), 300);
 
     if (pathname === "/api/categorie") return json(await elenco(env));
@@ -558,6 +616,21 @@ export default {
         return json({ ...c, gia: gia ? gia.nome : null });
       }
 
+      // un video singolo per tutti: entra nell'indice nella sezione scelta
+      if (azione === "video-aggiungi") {
+        const tutte = await elenco(env);
+        if (!tutte.some((c) => c.id === corpo.cat)) return json({ errore: "Sezione sconosciuta." }, 0, 400);
+        const v = await infoVideo(env, String(corpo.id || ""));
+        if (!v) return json({ errore: "Video non trovato." }, 0, 404);
+        const lin = LINGUE.includes(corpo.lingua) ? corpo.lingua : v.lingua || "en";
+        const gia = await env.DB.prepare("SELECT id FROM video WHERE id = ?").bind(v.id).first();
+        if (gia) await env.DB.prepare("UPDATE video SET cat = ?, lingua = ? WHERE id = ?").bind(corpo.cat, lin, v.id).run();
+        else await salvaVideo(env, [{ ...v, cat: corpo.cat, lingua: lin, data: v.data || new Date().toISOString() }]);
+        // le liste in cache cambiano chiave: il video si vede subito
+        const mod = await modifiche(env);
+        await env.LAVAGNA.put("modifiche", JSON.stringify({ ...mod, versione: Date.now() }));
+        return json({ ok: true });
+      }
       if (azione === "aggiungi") {
         const { id, nome, lingua, cat } = corpo;
         const tutte = await elenco(env);
