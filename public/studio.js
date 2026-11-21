@@ -6,6 +6,7 @@
 // Gli appunti e le lezioni stanno nel browser; con la propria Lavagna (passkey) stanno sul server e si ritrovano ovunque.
 
 let C; // gli attrezzi di app.js (installa)
+import { passoMonta as montatore } from "./montaggio.js";
 export function installa(ctx) { C = ctx; }
 const $ = (s, d = document) => d.querySelector(s);
 const esc = (s = "") => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -873,167 +874,8 @@ async function passoVideo(box, l, salvaPresto, titoloPasso) {
   return () => { chiuso = true; };
 }
 
-async function passoMonta(box, l, salvaPresto, titoloPasso) {
-  box.innerHTML = titoloPasso(w("g3")) + `<div class="l-blocchi" id="lBlocchi"></div>`;
-  const inserisci = (i) => `<div class="inserisci" data-pos="${i}"><span>${w("qui")}</span><button class="link" data-b="titolo">${s("bTitolo")}</button><button class="link" data-b="testo">${s("bTesto")}</button><button class="link" data-b="domanda">${s("bDomanda")}</button><a class="link" href="#/lezione/${l.id}/video">${w("altroVideo")}</a></div>`;
-  let aperto = null; // il blocco con la trascrizione aperta
-  const lista = $("#lBlocchi");
-  lista.addEventListener("click", (e) => {
-    const b = e.target.closest(".inserisci [data-b]"); if (!b) return;
-    const pos = Number(b.closest(".inserisci").dataset.pos);
-    const nuovo = { id: nuovoId(), tipo: b.dataset.b, testo: "" };
-    l.blocchi.splice(pos, 0, nuovo); salvaPresto(); disegna();
-    lista.querySelector(`[data-id="${nuovo.id}"] input, [data-id="${nuovo.id}"] textarea`)?.focus();
-  });
-  function disegna() {
-    lista.innerHTML = inserisci(0);
-    l.blocchi.forEach((b, i) => {
-      const el = document.createElement("div");
-      el.className = `blocco-l bl-${b.tipo}`; el.dataset.id = b.id;
-      const comandi = `<div class="b-comandi"><span class="b-nome">${i + 1} · ${s({ titolo: "tTitolo", testo: "tTesto", domanda: "tDomanda", video: "tVideo" }[b.tipo])}</span>
-        <button class="link" data-m="su" ${i === 0 ? "disabled" : ""} aria-label="↑">↑</button><button class="link" data-m="giu" ${i === l.blocchi.length - 1 ? "disabled" : ""} aria-label="↓">↓</button><button class="link" data-m="via" aria-label="${s("togli")}">✕</button></div>`;
-      if (b.tipo === "titolo") el.innerHTML = comandi + `<input class="b-titolo" value="${esc(b.testo)}" aria-label="${s("tTitolo")}">`;
-      else if (b.tipo === "testo" || b.tipo === "domanda") el.innerHTML = comandi + `<textarea rows="${b.tipo === "testo" ? 4 : 2}" aria-label="${s(b.tipo === "testo" ? "tTesto" : "tDomanda")}">${esc(b.testo)}</textarea>`;
-      else el.innerHTML = comandi + `<div class="b-video"><div class="b-schermo"><img class="b-foto" alt=""></div>
-          <div class="b-campi"><strong class="b-vtitolo">${esc(b.titoloVideo || b.video)}</strong> <small>${esc(b.nomeCanale || "")}</small>
-          <div class="ap-tempi"><label>${s("da")} <input data-c="da" value="${tempo(b.da)}" size="7"></label><label>${s("a")} <input data-c="a" value="${tempo(b.a)}" size="7"></label></div>
-          <div class="b-modi"><button type="button" class="bott on piccolo" data-p="scegli">${w("scegliPezzo")}</button><button type="button" class="bott piccolo" data-p="guarda">${w("guardaSegna")}</button>
-            <button type="button" class="bott piccolo" data-p="altro">${w("altroPezzo")}</button></div>
-          <div class="b-pezzo" hidden></div>
-          <textarea data-c="commento" rows="2" placeholder="${s("commentoPh")}" aria-label="${s("commento")}">${esc(b.commento || "")}</textarea>
-          ${b.estratto ? `<blockquote class="b-estr">${esc(b.estratto)}</blockquote>` : ""}
-          <label class="b-mostra"><input type="checkbox" data-c="mostraTesto" ${b.mostraTesto ? "checked" : ""}> ${s("mostraTesto")}</label></div></div>`;
-      lista.appendChild(el);
-      lista.insertAdjacentHTML("beforeend", inserisci(i + 1));
-      el.querySelector(".b-comandi").onclick = (e) => {
-        const m = e.target.closest("[data-m]")?.dataset.m; if (!m) return;
-        if (m === "via") l.blocchi.splice(i, 1);
-        if (m === "su" && i > 0) [l.blocchi[i - 1], l.blocchi[i]] = [l.blocchi[i], l.blocchi[i - 1]];
-        if (m === "giu" && i < l.blocchi.length - 1) [l.blocchi[i + 1], l.blocchi[i]] = [l.blocchi[i], l.blocchi[i + 1]];
-        disegna(); salvaPresto();
-      };
-      if (b.tipo !== "video") { el.querySelector("input, textarea").oninput = (e) => { b.testo = e.target.value; salvaPresto(); }; return; }
-      const foto = async () => { const fo = await fotogramma(b.video, b.da, b.durata); const img = el.querySelector(".b-foto"); if (img && fo) img.src = fo.src; };
-      foto();
-      const aggiornaTempi = async () => {
-        el.querySelector("[data-c=da]").value = tempo(b.da); el.querySelector("[data-c=a]").value = tempo(b.a);
-        const t = await trascrizione(b.video);
-        b.estratto = estrattoDa(t.righe, b.da, b.a);
-        let q = el.querySelector(".b-estr");
-        if (b.estratto) { if (!q) { q = document.createElement("blockquote"); q.className = "b-estr"; el.querySelector("[data-c=commento]").after(q); } q.textContent = b.estratto; }
-        if (!el.querySelector(".b-schermo iframe")) foto();
-        salvaPresto();
-      };
-      el.querySelectorAll("[data-c]").forEach((c) => {
-        const k = c.dataset.c;
-        c.onchange = c.oninput = (e) => {
-          if (k === "mostraTesto") { b.mostraTesto = c.checked; salvaPresto(); return; }
-          if (k === "da" || k === "a") {
-            if (e.type !== "change") return;
-            const x = secondi(c.value); if (!Number.isFinite(x)) return;
-            b[k] = x; if (b.a <= b.da) b.a = b.da + 30;
-            aggiornaTempi(); return;
-          }
-          b[k] = c.value; salvaPresto();
-        };
-      });
-      const pannello = el.querySelector(".b-pezzo");
-      const chiudiPannello = () => { pannello.hidden = true; pannello.innerHTML = ""; delete pannello.dataset.modo; if (aperto === pannello) aperto = null; fermaGiro(); };
-      const apriPannello = (modo) => {
-        if (pannello.dataset.modo === modo) { chiudiPannello(); return false; }
-        if (aperto && aperto !== pannello) aperto.chiudi?.();
-        fermaGiro();
-        aperto = pannello; pannello.chiudi = chiudiPannello; pannello.dataset.modo = modo; pannello.hidden = false;
-        return true;
-      };
-      // ✂ scegli il pezzo dalla trascrizione: cerca una parola, tocca dove comincia e dove finisce
-      async function scegli() {
-        pannello.innerHTML = `<p class="sotto">…</p>`;
-        const t = await trascrizione(b.video);
-        if (pannello.dataset.modo !== "scegli") return;
-        if (!t.righe?.length) {
-          chiediTrascrizione(pannello, b.video, t.fonte, () => { if (pannello.dataset.modo === "scegli") scegli(); });
-          pannello.insertAdjacentHTML("beforeend", `<p class="sotto b-oppure">${w("oppureGuarda")}</p>`);
-          return;
-        }
-        let inizio = null;
-        pannello.innerHTML = `<ol class="b-passi"><li>${w("sp1")}</li><li>${w("sp2")}</li><li>${w("sp3")}</li></ol>
-          <div class="tr-barra"><input type="search" class="b-cerca" placeholder="${s("cercaQui")}" aria-label="${s("cercaQui")}"><span class="tr-n b-n"></span>
-            <button class="bott piccolo b-su" aria-label="↑">↑</button><button class="bott piccolo b-giu" aria-label="↓">↓</button></div>
-          <p class="b-istr">${w("tocca")}</p>
-          <div class="tr-righe b-righe">${t.righe.map(([tt, x], k) => `<button class="b-riga" data-k="${k}"><span class="tc">${tempo(tt)}</span> ${esc(x)}</button>`).join("")}</div>`;
-        const box = pannello.querySelector(".b-righe"), righe = [...pannello.querySelectorAll(".b-riga")];
-        const vaiA = (r) => { box.scrollTop = r.offsetTop - box.offsetTop - 60; };
-        const segna = () => righe.forEach((r, k) => r.classList.toggle("dentro", t.righe[k][0] >= b.da - 0.5 && t.righe[k][0] < b.a));
-        segna();
-        const prima = righe.find((r, k) => t.righe[k][0] >= b.da - 0.5); if (prima) vaiA(prima);
-        // cerca dentro la trascrizione
-        const norm = (x) => x.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-        const testi = t.righe.map(([, x]) => norm(x));
-        let trovate = [], qui = 0;
-        const mostra = () => {
-          righe.forEach((r) => r.classList.remove("trovata", "questa"));
-          trovate.forEach((k) => righe[k].classList.add("trovata"));
-          if (trovate.length) { righe[trovate[qui]].classList.add("questa"); vaiA(righe[trovate[qui]]); }
-          pannello.querySelector(".b-n").textContent = pannello.querySelector(".b-cerca").value.trim().length > 1 ? (trovate.length ? `${qui + 1} / ${trovate.length}` : s("nienteQui")) : "";
-        };
-        pannello.querySelector(".b-cerca").oninput = (e) => { const q = norm(e.target.value.trim()); trovate = q.length > 1 ? testi.map((x, k) => (x.includes(q) ? k : -1)).filter((k) => k >= 0) : []; qui = 0; mostra(); };
-        pannello.querySelector(".b-cerca").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); if (trovate.length) { qui = (qui + 1) % trovate.length; mostra(); } } };
-        pannello.querySelector(".b-su").onclick = () => { if (trovate.length) { qui = (qui - 1 + trovate.length) % trovate.length; mostra(); } };
-        pannello.querySelector(".b-giu").onclick = () => { if (trovate.length) { qui = (qui + 1) % trovate.length; mostra(); } };
-        box.onclick = (e) => {
-          const r = e.target.closest(".b-riga"); if (!r) return;
-          const k = Number(r.dataset.k);
-          if (inizio === null) {
-            inizio = k; b.da = Math.floor(t.righe[k][0]);
-            righe.forEach((x) => x.classList.remove("dentro")); r.classList.add("dentro", "capo");
-            pannello.querySelector(".b-istr").textContent = w("toccaFine");
-            el.querySelector("[data-c=da]").value = tempo(b.da);
-          } else {
-            const [k1, k2] = k < inizio ? [k, inizio] : [inizio, k];
-            b.da = Math.floor(t.righe[k1][0]);
-            b.a = Math.ceil(t.righe[k2 + 1]?.[0] ?? t.righe[k2][0] + 5);
-            inizio = null; righe.forEach((x) => x.classList.remove("capo"));
-            pannello.querySelector(".b-istr").innerHTML = `${esc(w("fatto", tempo(b.da), tempo(b.a)))} <button class="link b-ancora">${w("altroPezzo")}</button>`;
-            pannello.querySelector(".b-ancora").onclick = () => altroPezzo();
-            segna(); aggiornaTempi();
-          }
-        };
-      }
-      // ▶ guarda e segna: il video gira qui, e due pulsanti prendono il momento giusto (va anche senza trascrizione)
-      let giro = null, lettore = null;
-      function fermaGiro() { clearInterval(giro); giro = null; try { lettore?.destroy(); } catch {} lettore = null; const sc = el.querySelector(".b-schermo"); if (sc && !sc.querySelector("img")) { sc.innerHTML = `<img class="b-foto" alt="">`; foto(); } }
-      async function guarda() {
-        pannello.innerHTML = `<p class="b-istr">${w("guardaIstr")}</p><div class="b-segna"><button class="bott on" data-s="da">${w("inizioQui")}</button><button class="bott on" data-s="a">${w("fineQui")}</button><span class="b-ora tr-n"></span></div>`;
-        const sc = el.querySelector(".b-schermo");
-        sc.innerHTML = `<div class="b-lettore"></div>`;
-        await C.caricaScript("https://www.youtube.com/iframe_api", "onYouTubeIframeAPIReady");
-        if (pannello.dataset.modo !== "guarda") return;
-        lettore = new YT.Player(sc.querySelector(".b-lettore"), { host: "https://www.youtube-nocookie.com", videoId: b.video, playerVars: { autoplay: 1, start: Math.floor(b.da), rel: 0, playsinline: 1 } });
-        giro = setInterval(() => { const o = pannello.querySelector(".b-ora"); if (o) o.textContent = tempo(lettore?.getCurrentTime?.() || 0); }, 500);
-        pannello.querySelectorAll("[data-s]").forEach((x) => x.onclick = () => {
-          const ora = Math.floor(lettore?.getCurrentTime?.() || 0);
-          b[x.dataset.s] = ora;
-          if (b.a <= b.da) b.a = b.da + 30;
-          aggiornaTempi();
-          C.avvisa(`${x.dataset.s === "da" ? s("da") : s("a")} ${tempo(ora)}`);
-        });
-      }
-      // ＋ un altro pezzo dello stesso video, subito sotto
-      function altroPezzo() {
-        const nuovo = { ...b, id: nuovoId(), da: b.a, a: b.a + 30, commento: "", estratto: "" };
-        l.blocchi.splice(i + 1, 0, nuovo); salvaPresto(); disegna();
-        const el2 = lista.querySelector(`[data-id="${nuovo.id}"]`);
-        el2?.scrollIntoView({ block: "center", behavior: "smooth" });
-        el2?.querySelector("[data-p=scegli]")?.click();
-      }
-      el.querySelector("[data-p=scegli]").onclick = () => { if (apriPannello("scegli")) scegli(); };
-      el.querySelector("[data-p=guarda]").onclick = () => { if (apriPannello("guarda")) guarda(); };
-      el.querySelector("[data-p=altro]").onclick = altroPezzo;
-    });
-  }
-  disegna();
-  return () => { aperto?.chiudi?.(); };
+function passoMonta(box, l, salvaPresto, titoloPasso) {
+  return montatore(box, l, salvaPresto, titoloPasso, { C, esc, s, tempo, secondi, nuovoId, estrattoDa, trascrizione, fotogramma, chiediTrascrizione, Q, idDaLink });
 }
 
 function passoPubblica(box, l, salvaPresto, titoloPasso) {
@@ -1177,10 +1019,11 @@ export async function vistaPresenta(id, pubblica = false) {
     if (p.tipo === "testo") scena.innerHTML = `<div class="pr-centro"><p class="pr-testo">${esc(p.testo)}</p></div>`;
     if (p.tipo === "domanda") scena.innerHTML = `<div class="pr-centro"><p class="pr-tipo">${s("tDomanda")}</p><p class="pr-domanda">${esc(p.testo)}</p></div>`;
     if (p.tipo === "st") scena.innerHTML = `<div class="pr-centro pr-st pr-st-${p.k}"><p class="pr-tipo">${ws(p.k)}</p>${htmlStrumento(p.k, l.strumenti[p.k], l.titolo)}</div>`;
+    if (["titolo", "testo", "domanda"].includes(p.tipo) && auto && p.sec) setTimeout(() => pagine[i] === p && auto && vai(i + 1), p.sec * 1000);
     if (p.tipo === "fine") scena.innerHTML = `<div class="pr-centro"><h2>${s("fine")}</h2></div>`;
     if (p.tipo === "fonti") scena.innerHTML = `<div class="pr-centro pr-fonti"><h2>${s("fonti")}</h2><ul>${fonti(video).map((f) => `<li><strong>${esc(f.titolo)}</strong>${f.canale ? ` — ${esc(f.canale)}` : ""} <span>${f.tempi}</span></li>`).join("")}</ul></div>`;
     if (p.tipo === "video") {
-      scena.innerHTML = `<div class="pr-video"><div class="pr-schermo"><div id="prPlayer"></div></div>
+      scena.innerHTML = `<div class="pr-video"><div class="pr-schermo"><div id="prPlayer"></div>${p.scritta ? `<p class="pr-scritta">${esc(p.scritta)}</p>` : ""}</div>
         <div class="pr-dida"><p class="pr-vt">${esc(p.titoloVideo || "")} <span>${esc(p.nomeCanale || "")} · ${tempo(p.da)}–${tempo(p.a)}</span></p>
         ${p.commento ? `<p class="pr-commento">${esc(p.commento)}</p>` : ""}${p.mostraTesto && p.estratto ? `<blockquote>${esc(p.estratto)}</blockquote>` : ""}</div></div>`;
       await C.caricaScript("https://www.youtube.com/iframe_api", "onYouTubeIframeAPIReady");
