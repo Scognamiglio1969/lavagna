@@ -596,60 +596,17 @@ export function htmlStrumento(tipo, testo, titolo, statico = false) {
   if (statico) return `<div class="st-domande">${domandeDa(testo).map(([a, b]) => `<p><b>${esc(a)}</b><br><i>${esc(b)}</i></p>`).join("")}</div>`;
   return `<div class="st-domande">${domandeDa(testo).map(([a, b]) => `<details><summary>${esc(a)}</summary><p>${esc(b)}</p></details>`).join("")}</div>`;
 }
-const strumentiDi = (l) => STRUMENTI.filter((k) => righeDi(l.strumenti?.[k]).length);
+const strumentiDi = (l) => STRUMENTI.filter((k) => righeDi(l.strumenti?.[k]).length && !l.blocchi.some((b) => b.tipo === "strumento" && b.k === k));
 function mdStrumento(k, testo) {
   if (k === "mappa") return righeDi(testo).map((r) => { const m = r.replace(/\t/g, "  ").match(/^(\s*)(?:[-*•]\s*)?(.*)$/); return `${"  ".repeat(Math.floor(m[1].length / 2))}- ${m[2].trim()}`; }).join("\n");
   if (k === "domande") return domandeDa(testo).map(([a, b]) => `**${a}**  \n${b}`).join("\n\n");
   return (k === "glossario" ? glossarioDa(testo) : tempoDa(testo)).map(([a, b]) => `- **${a}**${b ? `: ${b}` : ""}`).join("\n");
 }
-const materialeDi = (l) => [l.titolo, l.sottotitolo, ...l.blocchi.map((b) => b.tipo === "video" ? `[${b.titoloVideo}] ${b.commento || ""} ${b.estratto || ""}` : b.testo)].filter(Boolean).join("\n").slice(0, 9000);
-
-async function passoStrumenti(box, l, salvaPresto, titoloPasso) {
-  l.strumenti ||= {};
-  let scelto = C.memo.get("strumento", "mappa");
-  box.innerHTML = titoloPasso(ws("g35")) + `<div class="w-schede" id="stSchede" role="tablist"></div><div class="st-area" id="stArea"></div>`;
-  const schede = () => {
-    $("#stSchede").innerHTML = STRUMENTI.map((k) => `<button role="tab" data-k="${k}" class="${k === scelto ? "on" : ""}">${ws(k)}${righeDi(l.strumenti[k]).length ? ` <small>${righeDi(l.strumenti[k]).length}</small>` : ""}</button>`).join("");
-  };
-  $("#stSchede").onclick = (e) => { const b = e.target.closest("[data-k]"); if (b) { scelto = b.dataset.k; C.memo.set("strumento", scelto); schede(); area(); } };
-  function area() {
-    const k = scelto;
-    $("#stArea").innerHTML = `<div class="st-scrivi"><p class="guida">${ws(k + "Guida")}</p>
-        <textarea id="stTesto" rows="12" spellcheck="true" placeholder="${esc(ws(k + "Es"))}" aria-label="${ws(k)}">${esc(l.strumenti[k] || "")}</textarea>
-        <p><button class="bott on" id="stProponi">${ws("proponi")}</button> <span class="msg" id="stMsg" role="status"></span></p></div>
-      <div class="st-vedi"><p class="guida">${ws("anteprimaT")}</p><div id="stVedi" class="st-vedi-dentro"></div></div>`;
-    const vedi = () => { $("#stVedi").innerHTML = htmlStrumento(k, l.strumenti[k], l.titolo) || `<p class="sotto">${esc(ws(k + "Es")).replace(/\n/g, "<br>")}</p>`; };
-    vedi();
-    $("#stTesto").oninput = (e) => { l.strumenti[k] = e.target.value; vedi(); schede(); salvaPresto(); };
-    $("#stTesto").onkeydown = (e) => { // Tab = rientro, per la mappa
-      if (e.key !== "Tab" || k !== "mappa") return;
-      e.preventDefault();
-      const t = e.target, a = t.selectionStart, inizio = t.value.lastIndexOf("\n", a - 1) + 1;
-      if (e.shiftKey) { if (t.value.slice(inizio, inizio + 2) === "  ") { t.value = t.value.slice(0, inizio) + t.value.slice(inizio + 2); t.selectionStart = t.selectionEnd = Math.max(inizio, a - 2); } }
-      else { t.value = t.value.slice(0, inizio) + "  " + t.value.slice(inizio); t.selectionStart = t.selectionEnd = a + 2; }
-      t.dispatchEvent(new Event("input"));
-    };
-    $("#stProponi").onclick = async () => {
-      const materiale = materialeDi(l);
-      if (materiale.length < 80) { $("#stMsg").textContent = ws("serveMateriale"); return; }
-      $("#stProponi").disabled = true; $("#stMsg").textContent = ws("proponendo");
-      const r = await fetch("/api/strumento", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tipo: k, titolo: l.titolo, materiale }) }).catch(() => null);
-      const d = await r?.json().catch(() => ({})) || {};
-      if (!$("#stProponi")) return;
-      $("#stProponi").disabled = false;
-      if (!r?.ok || !d.testo) { $("#stMsg").textContent = r?.status === 429 ? ws("troppeAI") : ws("erroreAI"); return; }
-      l.strumenti[k] = (l.strumenti[k] ? l.strumenti[k].trimEnd() + "\n" : "") + d.testo;
-      $("#stTesto").value = l.strumenti[k]; vedi(); schede(); salvaPresto();
-      $("#stMsg").textContent = ws("proposto");
-    };
-  }
-  schede(); area();
-  return () => {};
-}
+const materialeDi = (l) => [l.titolo, l.sottotitolo, ...l.blocchi.map((b) => b.tipo === "video" ? `[${b.titoloVideo}] ${b.commento || ""} ${b.estratto || ""}` : b.tipo === "strumento" ? "" : b.testo)].filter(Boolean).join("\n").slice(0, 9000);
 
 // ——— costruire una lezione / ricerca, passo per passo ———
 // 1 argomento → 2 scegli i video (proposti sull'argomento, cerca, link, appunti) → 3 monta (ordine, pezzi, titoli, domande) → 4 pubblica
-const PASSI = ["argomento", "video", "monta", "strumenti", "pubblica"];
+const PASSI = ["argomento", "video", "monta", "pubblica"]; // gli strumenti (mappa, glossario…) stanno nella linea del montaggio
 const PAROLE_W = {
   en: {
     passo: (n) => `Step ${n}`, pArgomento: "Topic", pVideo: "Choose videos", pMonta: "Put it together", pPubblica: "Publish",
@@ -715,7 +672,7 @@ export async function vistaLezione(arg) {
   const vista = C.vista;
   const l = (await Q.lezioni()).find((x) => x.id === id);
   if (!l) { vista.innerHTML = `<p class="vuoto">${s("nonTrovata")}</p>`; return; }
-  const passo = PASSI.includes(chiesto) ? chiesto : l.passo || "argomento";
+  const passo = PASSI.includes(chiesto) ? chiesto : PASSI.includes(l.passo) ? l.passo : l.passo === "strumenti" ? "monta" : "argomento";
   const n = PASSI.indexOf(passo);
   const studente = false; // insegnanti e studenti creano allo stesso modo
   let timer = null;
@@ -727,14 +684,14 @@ export async function vistaLezione(arg) {
   let chiudiPasso = () => {};
   C.pulisci(() => { chiudiPasso(); if (timer) { clearTimeout(timer); Q.salva(l).catch(() => {}); } });
   if (l.passo !== passo) { l.passo = passo; salvaPresto(true); }
-  const nomi = ["pArgomento", "pVideo", "pMonta", "pStrumenti", "pPubblica"];
+  const nomi = ["pArgomento", "pVideo", "pMonta", "pPubblica"];
   vista.innerHTML = `<div class="guidata">
     <p class="l-su"><a class="link" href="#/scuola">← ${s("scuola")}</a> <span class="l-tipo">${s(studente ? "ricerca" : "lezione")}</span>
       <strong class="l-nome">${esc(l.titolo || s("senzaTitolo"))}</strong> <span class="l-stato" id="lStato"></span></p>
     <ol class="passi">${PASSI.map((p, i) => `<li class="${i === n ? "on" : i < n ? "fatto" : ""}"><a href="#/lezione/${l.id}/${p}"><span class="pn">${i + 1}</span>${w(nomi[i])}</a></li>`).join("")}</ol>
     <section class="passo" id="passo"></section>
     <div class="passo-nav">${n > 0 ? `<a class="bott" href="#/lezione/${l.id}/${PASSI[n - 1]}">${w("indietro")}</a>` : "<span></span>"}
-      ${n < PASSI.length - 1 ? `<button class="bott on grande" id="avanti">${w(["vaiAVideo", "vaiAMonta", "vaiAStrumenti", "vaiAPubblica"][n])}</button>` : ""}</div>
+      ${n < PASSI.length - 1 ? `<button class="bott on grande" id="avanti">${w(["vaiAVideo", "vaiAMonta", "vaiAPubblica"][n])}</button>` : ""}</div>
     <p class="msg" id="pMsg" role="status"></p></div>`;
   const avanti = $("#avanti");
   if (avanti) avanti.onclick = () => {
@@ -747,7 +704,6 @@ export async function vistaLezione(arg) {
   if (passo === "argomento") return passoArgomento(box, l, salvaPresto, titoloPasso, studente);
   if (passo === "video") chiudiPasso = await passoVideo(box, l, salvaPresto, titoloPasso);
   if (passo === "monta") chiudiPasso = await passoMonta(box, l, salvaPresto, titoloPasso);
-  if (passo === "strumenti") chiudiPasso = await passoStrumenti(box, l, salvaPresto, titoloPasso);
   if (passo === "pubblica") passoPubblica(box, l, salvaPresto, titoloPasso);
 }
 
@@ -875,7 +831,7 @@ async function passoVideo(box, l, salvaPresto, titoloPasso) {
 }
 
 function passoMonta(box, l, salvaPresto, titoloPasso) {
-  return montatore(box, l, salvaPresto, titoloPasso, { C, esc, s, tempo, secondi, nuovoId, estrattoDa, trascrizione, fotogramma, chiediTrascrizione, Q, idDaLink });
+  return montatore(box, l, salvaPresto, titoloPasso, { C, esc, s, tempo, secondi, nuovoId, estrattoDa, trascrizione, fotogramma, chiediTrascrizione, Q, idDaLink, htmlStrumento, ws, STRUMENTI, materialeDi });
 }
 
 function passoPubblica(box, l, salvaPresto, titoloPasso) {
@@ -923,6 +879,7 @@ async function esportaLezione(l, formato) {
       if (b.tipo === "titolo") md += `\n## ${b.testo}\n`;
       if (b.tipo === "testo") md += `\n${b.testo}\n`;
       if (b.tipo === "domanda") md += `\n> **${s("tDomanda")}:** ${b.testo}\n`;
+      if (b.tipo === "strumento" && righeDi(b.testo).length) md += `\n## ${ws(b.k)}\n\n${mdStrumento(b.k, b.testo)}\n`;
       if (b.tipo === "video" && b.video) md += `\n**[${b.titoloVideo} · ${tempo(b.da)}–${tempo(b.a)}](${linkYT(b.video, b.da)})**${b.nomeCanale ? ` — ${b.nomeCanale}` : ""}\n${b.commento ? `\n${b.commento}\n` : ""}${b.estratto ? `\n> ${b.estratto}\n` : ""}`;
     }
     for (const k of strumentiDi(l)) md += `\n## ${ws(k)}\n\n${mdStrumento(k, l.strumenti[k])}\n`;
@@ -934,6 +891,7 @@ async function esportaLezione(l, formato) {
     if (b.tipo === "titolo") corpo += `<h2>${esc(b.testo)}</h2>`;
     if (b.tipo === "testo") corpo += `<p class="testo">${esc(b.testo)}</p>`;
     if (b.tipo === "domanda") corpo += `<p class="domanda"><strong>${s("tDomanda")}:</strong> ${esc(b.testo)}</p>`;
+    if (b.tipo === "strumento" && righeDi(b.testo).length) corpo += `<h2>${ws(b.k)}</h2>${htmlStrumento(b.k, b.testo, l.titolo, true)}`;
     if (b.tipo === "video" && b.video) corpo += `<p><strong>${esc(b.titoloVideo || b.video)}</strong>${b.nomeCanale ? ` — ${esc(b.nomeCanale)}` : ""}</p>` + await pezzoHTML({ ...b, testo: b.commento });
   }
   for (const k of strumentiDi(l)) corpo += `<h2>${ws(k)}</h2>${htmlStrumento(k, l.strumenti[k], l.titolo, true)}`;
@@ -964,6 +922,7 @@ export async function vistaLezionePubblica(pub) {
     <div class="l-leggi">${l.blocchi.map((b) => b.tipo === "titolo" ? `<h2 class="blocco">${esc(b.testo)}</h2>`
       : b.tipo === "testo" ? `<p class="testo">${esc(b.testo)}</p>`
       : b.tipo === "domanda" ? `<p class="domanda"><strong>${s("tDomanda")}:</strong> ${esc(b.testo)}</p>`
+      : b.tipo === "strumento" ? (righeDi(b.testo).length ? `<h2 class="blocco">${ws(b.k)}</h2>${htmlStrumento(b.k, b.testo, l.titolo)}` : "")
       : b.video ? `<div class="l-pezzo"><a href="#/v/${b.video}" data-v="${b.video}" data-t="${b.da}" class="l-pfoto" style="background-image:url(https://i.ytimg.com/vi/${b.video}/mqdefault.jpg)"><span class="pe-tc">${tempo(b.da)}–${tempo(b.a)}</span></a>
           <div><strong>${esc(b.titoloVideo || "")}</strong> <small>${esc(b.nomeCanale || "")}</small>${b.commento ? `<p>${esc(b.commento)}</p>` : ""}${b.estratto ? `<blockquote>${esc(b.estratto)}</blockquote>` : ""}</div></div>` : "").join("")}
     ${strumentiDi(l).map((k) => `<h2 class="blocco">${ws(k)}</h2>${htmlStrumento(k, l.strumenti[k], l.titolo)}`).join("")}</div></div>`;
@@ -1018,12 +977,13 @@ export async function vistaPresenta(id, pubblica = false) {
     if (p.tipo === "titolo") scena.innerHTML = `<div class="pr-centro"><h2>${esc(p.testo)}</h2></div>`;
     if (p.tipo === "testo") scena.innerHTML = `<div class="pr-centro"><p class="pr-testo">${esc(p.testo)}</p></div>`;
     if (p.tipo === "domanda") scena.innerHTML = `<div class="pr-centro"><p class="pr-tipo">${s("tDomanda")}</p><p class="pr-domanda">${esc(p.testo)}</p></div>`;
+    if (p.tipo === "strumento") scena.innerHTML = `<div class="pr-centro pr-st pr-st-${p.k}"><p class="pr-tipo">${ws(p.k)}</p>${htmlStrumento(p.k, p.testo, l.titolo)}</div>`;
     if (p.tipo === "st") scena.innerHTML = `<div class="pr-centro pr-st pr-st-${p.k}"><p class="pr-tipo">${ws(p.k)}</p>${htmlStrumento(p.k, l.strumenti[p.k], l.titolo)}</div>`;
-    if (["titolo", "testo", "domanda"].includes(p.tipo) && auto && p.sec) setTimeout(() => pagine[i] === p && auto && vai(i + 1), p.sec * 1000);
+    if (["titolo", "testo", "domanda", "strumento"].includes(p.tipo) && auto && p.sec) setTimeout(() => pagine[i] === p && auto && vai(i + 1), p.sec * 1000);
     if (p.tipo === "fine") scena.innerHTML = `<div class="pr-centro"><h2>${s("fine")}</h2></div>`;
     if (p.tipo === "fonti") scena.innerHTML = `<div class="pr-centro pr-fonti"><h2>${s("fonti")}</h2><ul>${fonti(video).map((f) => `<li><strong>${esc(f.titolo)}</strong>${f.canale ? ` — ${esc(f.canale)}` : ""} <span>${f.tempi}</span></li>`).join("")}</ul></div>`;
     if (p.tipo === "video") {
-      scena.innerHTML = `<div class="pr-video"><div class="pr-schermo"><div id="prPlayer"></div>${p.scritta ? `<p class="pr-scritta">${esc(p.scritta)}</p>` : ""}</div>
+      scena.innerHTML = `<div class="pr-video"><div class="pr-schermo"><div id="prPlayer"></div><div class="mo-scritte pr-scritte"></div></div>
         <div class="pr-dida"><p class="pr-vt">${esc(p.titoloVideo || "")} <span>${esc(p.nomeCanale || "")} · ${tempo(p.da)}–${tempo(p.a)}</span></p>
         ${p.commento ? `<p class="pr-commento">${esc(p.commento)}</p>` : ""}${p.mostraTesto && p.estratto ? `<blockquote>${esc(p.estratto)}</blockquote>` : ""}</div></div>`;
       await C.caricaScript("https://www.youtube.com/iframe_api", "onYouTubeIframeAPIReady");
@@ -1033,7 +993,19 @@ export async function vistaPresenta(id, pubblica = false) {
         host: "https://www.youtube-nocookie.com", videoId: p.video,
         playerVars: { autoplay: 1, start: Math.floor(p.da), end: Math.ceil(p.a), rel: 0, playsinline: 1, iv_load_policy: 3, hl: ls || C.ui(), cc_lang_pref: ls || C.ui(), cc_load_policy: ls ? 1 : 0 },
         events: {
-          onReady: (e) => { e.target.playVideo(); e.target.setPlaybackRate?.(C.memo.get("velocita", 1)); },
+          onReady: (e) => {
+            e.target.playVideo(); e.target.setPlaybackRate?.(C.memo.get("velocita", 1));
+            // le scritte sopra il video, ognuna nel suo tempo
+            const scritte = p.scritte || (p.scritta ? [{ testo: p.scritta, da: p.da, a: p.a, stile: "sotto" }] : []);
+            if (!scritte.length) return;
+            const g = setInterval(() => {
+              const c = scena.querySelector(".pr-scritte");
+              if (pagine[i] !== p || !c) { clearInterval(g); return; }
+              const t = player?.getCurrentTime?.() || 0;
+              const h = scritte.filter((o) => t >= o.da && t < o.a).map((o) => `<p class="mo-s mo-s-${o.stile || "sotto"}">${esc(o.testo || "")}</p>`).join("");
+              if (c.dataset.h !== h) { c.innerHTML = h; c.dataset.h = h; }
+            }, 150);
+          },
           onStateChange: (e) => { if (e.data === YT.PlayerState.ENDED && auto && pagine[i] === p) setTimeout(() => pagine[i] === p && vai(i + 1), 1200); },
         },
       });
