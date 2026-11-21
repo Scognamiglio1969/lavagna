@@ -9,7 +9,7 @@ account_id = "5171bedd1b2c6e87bbe21a3c606150f7"
 directory = "public"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/api/*", "/v/*"]
+run_worker_first = ["/api/*", "/v/*", "/l/*"]
 
 [[kv_namespaces]]
 binding = "LAVAGNA"
@@ -20,6 +20,13 @@ id = "2da597b97b864a7da9cc1ceab91e8b6a"
 binding = "DB"
 database_name = "lavagna"
 database_id = "e6151428-da55-415d-8757-e060c4d0ad57"
+
+# Il parlato dei video (trascrizioni e ricerca nelle parole dette): database a parte, così non pesa sull'indice
+[[d1_databases]]
+binding = "PARLATO"
+database_name = "lavagna-parlato"
+database_id = "acec8c2d-a5dd-4b34-b2fe-ab243d1415e6"
+migrations_dir = "migrazioni-parlato"
 
 # Ricerca per significato: un vettore per video (modello multilingue bge-m3, 1024 dimensioni)
 [[vectorize]]

@@ -134,7 +134,7 @@ export async function gestisciConto(req, env, pathname) {
   if (azione === "/cancella") {
     const u = await utenteDa(req, env);
     if (!u) return json({ errore: "accesso" }, 401);
-    await env.DB.batch(["miei_canali", "miei_argomenti", "miei_video", "sessioni", "passkey"].map((t) =>
+    await env.DB.batch(["miei_canali", "miei_argomenti", "miei_video", "quaderno", "sessioni", "passkey"].map((t) =>
       env.DB.prepare(`DELETE FROM ${t} WHERE utente = ?`).bind(u.id)).concat(env.DB.prepare("DELETE FROM utenti WHERE id = ?").bind(u.id)));
     return json({ ok: true }, 200, { "set-cookie": cookieSessione("", 0) });
   }

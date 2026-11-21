@@ -1,6 +1,6 @@
 # Lavagna.
 
-*by Massimo Scognamiglio*
+*by Scognamiglio*
 
 ## YouTube, curated. No ads on the page.
 
@@ -22,6 +22,9 @@ No ads on the page. No Shorts. No algorithm pulling you down a rabbit hole. Just
 - 🌍 **Five languages of content**: English, Italian, Spanish, German, French, with a filter for video language. Interface in English or Italian.
 - ▶ **Search YouTube from Lavagna**: results without Shorts, playable right here. Add a single video or a whole channel to a topic, to your own Lavagna or (for the curator) to everyone's.
 - ↗ **Share a video**: the link shows title and thumbnail in WhatsApp, Telegram or mail, and opens the video in Lavagna.
+- 🗣 **Search inside what is said**: every transcribed video has its transcript beside the player, following along; search the words said in one video or in all of them, and jump to the exact second. Videos not yet transcribed can be transcribed by anyone with their own free Gemini key (it stays in their browser).
+- ✎ **Notes on the timeline**: from… to…, your comment, the words said in that piece and a frame. Export them as a page with frames (HTML), PDF, Markdown or CSV.
+- 🎓 **School**: teachers and students build lessons the same way, step by step — 1 topic, 2 choose videos (proposed on the topic from what is said in videos, from Lavagna and from YouTube, or from a link or your notes), 3 put it together (pick the exact piece by tapping two sentences of the transcript; titles, text and questions in between), 4 learning tools (mind map, glossary, timeline, review questions — written as simple lines or proposed by AI from the chosen pieces), 5 publish. Present it full screen (each excerpt starts and stops where it should), download it with frames and sources, or share a link others can copy.
 - 💬 **Subtitles in your language**: pick a language in ⚙ and videos open with subtitles on (original or auto-translated by YouTube). Videos with several audio tracks play the one in your language.
 - 🌙 **Light, dark or automatic** theme.
 - 🏛 **More than YouTube.** Public-domain films from the Internet Archive, NASA footage, Vimeo documentaries, PeerTube.
@@ -55,9 +58,14 @@ Everything runs on Cloudflare's free tier:
 | **Workers AI** (Mistral Small 3.1, Llama 3.3 70B fallback) | topic keywords and channel vetting |
 | **KV** | channel and topic changes made from the site, passkey challenges |
 | **Passkeys** ([SimpleWebAuthn](https://simplewebauthn.dev)) | optional accounts for «My Lavagna», no email or password |
+| **D1** `lavagna-parlato` (`migrazioni-parlato/`) | transcripts (gzip) and a contentless FTS5 index of what is said, in 2-minute windows |
+| **Workers AI** (same models) | first proposals for mind map, glossary, timeline and review questions |
+| **Gemini** (the visitor's own key, never stored) | transcribes videos that have no transcript yet |
 | **Cron** (every 5 min) | refreshes feeds, fills the index, builds embeddings, reads YouTube archives |
 
 Feeds come from public RSS (YouTube's long-videos-only uploads playlist, so Shorts never appear). An optional **YouTube Data API key** adds durations, view counts and each channel's full back catalogue, slowly and within quota.
+
+YouTube does not give subtitles to Cloudflare's servers, so transcripts are filled from a normal computer with `node scripts/trascrizioni.mjs [how many]` (it reads YouTube's subtitles and the frame sheets, then uploads them with `SCRIPT_KEY`); the most-opened videos go first.
 
 The front end is plain HTML, CSS and JavaScript (`public/`), no framework and no build step.
 
@@ -80,6 +88,7 @@ To deploy: set `account_id` and the resource ids in `wrangler.toml` to your own,
 ```bash
 npx wrangler secret put ADMIN_PASSWORD
 npx wrangler secret put YT_KEY        # optional: YouTube Data API v3 key
+npx wrangler secret put SCRIPT_KEY    # for scripts/trascrizioni.mjs
 npx wrangler deploy
 ```
 
@@ -93,4 +102,4 @@ The page itself has no ads and no tracking. Videos play in each platform's own p
 
 ## In italiano
 
-**Lavagna** è una videoteca per imparare, scelta a mano: canali ufficiali e archivi aperti, senza pubblicità nella pagina, senza Shorts e senza consigli automatici. Account facoltativo con passkey (niente email né password) per aggiungere i propri canali e argomenti. Ricerca anche dentro YouTube (senza Shorts) con il pulsante per aggiungere a Lavagna un video o un canale, e link da condividere con titolo e miniatura. Video in italiano, inglese, spagnolo, tedesco e francese, con sottotitoli nella lingua che scegli. Interfaccia in inglese e in italiano (⚙ in alto a destra), tema chiaro, scuro o automatico. Ricerca per parole (e presto anche per significato), modalità TV con timer di spegnimento, velocità fino a 2× su ogni video, e strumenti per aggiungere canali e argomenti nuovi.
+**Lavagna** è una videoteca per imparare, scelta a mano: canali ufficiali e archivi aperti, senza pubblicità nella pagina, senza Shorts e senza consigli automatici. Account facoltativo con passkey (niente email né password) per aggiungere i propri canali e argomenti. Ricerca anche dentro YouTube (senza Shorts) con il pulsante per aggiungere a Lavagna un video o un canale, e link da condividere con titolo e miniatura. Trascrizione accanto al video, ricerca dentro il parlato (anche in tutti i video insieme) fino al secondo esatto; chi vuole trascrive i video che mancano con la propria chiave Gemini gratuita. Appunti col minutaggio (da… a…, commento, parole dette, fotogramma) da esportare in HTML, PDF, Markdown o CSV. Sezione Scuola: insegnanti e studenti costruiscono lezioni passo passo (argomento, video proposti sul tema, montaggio dei pezzi, strumenti per studiare come mappa mentale, glossario, linea del tempo e domande per ripassare, pubblicazione), da presentare a tutto schermo, scaricare o condividere con un link. Video in italiano, inglese, spagnolo, tedesco e francese, con sottotitoli nella lingua che scegli. Interfaccia in inglese e in italiano (⚙ in alto a destra), tema chiaro, scuro o automatico. Ricerca per parole (e presto anche per significato), modalità TV con timer di spegnimento, velocità fino a 2× su ogni video, e strumenti per aggiungere canali e argomenti nuovi.

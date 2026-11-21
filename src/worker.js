@@ -5,6 +5,7 @@ import { gestisciConto, utenteDa } from "./conto.js";
 const LINGUE = ["it", "en", "es", "de", "fr"]; // lingue dei canali
 const PAESE = { it: "IT", es: "ES", de: "DE", fr: "FR" };
 import { cercaSuYouTube, infoVideo, paginaCondivisa } from "./youtube.js";
+import { leggiTrascrizione, salvaTrascrizione, segnaRichiesta, cercaParlato, infoFotogrammi, foglio, trascriviConGemini } from "./parlato.js";
 import { lavoroPeriodico, salvaVideo, cerca, statoIndice, videoDiCategoria, videoDiCanale, togliCanale, spostaVideo, home } from "./indice.js";
 
 const CACHE_SECONDI = 1800; // ogni feed si rilegge al massimo ogni mezz'ora
@@ -336,7 +337,7 @@ function passwordGiusta(req, env) {
 }
 
 // ——— «La mia Lavagna»: canali e argomenti personali, visibili solo a chi li aggiunge ———
-const MAX_MIEI_CANALI = 300, MAX_MIEI_ARGOMENTI = 30, MAX_RICERCHE_GIORNO = 12, MAX_MIEI_VIDEO = 500;
+const MAX_MIEI_CANALI = 300, MAX_MIEI_ARGOMENTI = 30, MAX_RICERCHE_GIORNO = 12, MAX_MIEI_VIDEO = 500, MAX_QUADERNO = 3000;
 const comeMioVideo = (r) => ({ id: r.id, titolo: r.titolo, canale: r.canale, nomeCanale: r.nome_canale, lingua: r.lingua, cat: r.cat, durata: r.durata, data: r.data || r.creato, viste: 0, mio: true });
 async function laMia(req, env, pathname) {
   const u = await utenteDa(req, env);
@@ -464,7 +465,112 @@ async function laMia(req, env, pathname) {
     return json(ordina([...liste.flat(), ...singoli.results.map(comeMioVideo)]));
   }
 
+  // ——— il quaderno: appunti col minutaggio, lezioni e ricerche ———
+  if (azione === "/quaderno" && req.method === "GET") {
+    const { results } = await env.DB.prepare("SELECT id, tipo, dati, aggiornato, pubblico FROM quaderno WHERE utente = ? ORDER BY aggiornato DESC").bind(u.id).all();
+    return json(results.map((r) => ({ ...JSON.parse(r.dati), id: r.id, tipo: r.tipo, aggiornato: r.aggiornato, pubblico: r.pubblico || undefined })));
+  }
+  if (azione === "/quaderno-salva") {
+    const voci = (Array.isArray(corpo.voci) ? corpo.voci : [corpo]).slice(0, 200);
+    const n = await quanti("quaderno");
+    const istruzioni = [];
+    for (const x of voci) {
+      const id = String(x.id || "");
+      const dati = JSON.stringify({ ...x, pubblico: undefined });
+      if (!/^[\w-]{6,40}$/.test(id) || !["appunto", "lezione"].includes(x.tipo)) continue;
+      if (dati.length > 300000) return json({ errore: "Too long." }, 0, 400);
+      istruzioni.push(env.DB.prepare(`INSERT INTO quaderno (utente, id, tipo, dati, aggiornato) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(utente, id) DO UPDATE SET dati = excluded.dati, aggiornato = excluded.aggiornato`).bind(u.id, id, x.tipo, dati, new Date().toISOString()));
+    }
+    if (n + istruzioni.length > MAX_QUADERNO) return json({ errore: `Your notebook is full (${MAX_QUADERNO}).` }, 0, 400);
+    if (istruzioni.length) await env.DB.batch(istruzioni);
+    return json({ ok: true, salvati: istruzioni.length });
+  }
+  if (azione === "/quaderno-togli") {
+    await env.DB.prepare("DELETE FROM quaderno WHERE utente = ? AND id = ?").bind(u.id, String(corpo.id || "")).run();
+    return json({ ok: true });
+  }
+  // link pubblico di una lezione (sola lettura): si crea, si toglie
+  if (azione === "/quaderno-condividi") {
+    const r = await env.DB.prepare("SELECT pubblico FROM quaderno WHERE utente = ? AND id = ? AND tipo = 'lezione'").bind(u.id, String(corpo.id || "")).first();
+    if (!r) return json({ errore: "Not found." }, 0, 404);
+    const pub = corpo.togli ? null : r.pubblico || [...crypto.getRandomValues(new Uint8Array(9))].map((b) => "abcdefghijkmnpqrstuvwxyz23456789"[b % 32]).join("");
+    await env.DB.prepare("UPDATE quaderno SET pubblico = ? WHERE utente = ? AND id = ?").bind(pub, u.id, String(corpo.id)).run();
+    return json({ pubblico: pub });
+  }
+
   return json({ errore: "azione sconosciuta" }, 0, 404);
+}
+
+// link di una lezione condivisa: anteprima (titolo, prima miniatura) per chat e mail, poi la lezione in Lavagna
+async function paginaLezione(env, pub, origine) {
+  const r = await env.DB.prepare("SELECT dati FROM quaderno WHERE pubblico = ? AND tipo = 'lezione'").bind(pub).first().catch(() => null);
+  const l = r ? JSON.parse(r.dati) : null;
+  const e = (x = "") => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const titolo = l?.titolo || "Lavagna";
+  const primo = l?.blocchi?.find((b) => b.tipo === "video" && b.video)?.video;
+  const descr = [l?.sottotitolo, l?.autore].filter(Boolean).join(" · ") || "A lesson made of video excerpts, on Lavagna.";
+  const dove = `/#/l/${pub}`;
+  return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${e(titolo)} — Lavagna</title><meta name="description" content="${e(descr)}">
+<meta property="og:type" content="article"><meta property="og:site_name" content="Lavagna"><meta property="og:title" content="${e(titolo)}">
+<meta property="og:description" content="${e(descr)}"><meta property="og:url" content="${e(`${origine}/l/${pub}`)}">
+${primo ? `<meta property="og:image" content="https://i.ytimg.com/vi/${primo}/hqdefault.jpg"><meta name="twitter:card" content="summary_large_image">` : ""}
+<meta http-equiv="refresh" content="0; url=${e(dove)}"><script>location.replace(${JSON.stringify(dove)})</script>
+</head><body style="font-family:system-ui;background:#f6f3ec;color:#222;padding:24px"><p><a href="${e(dove)}">${e(titolo)}</a></p></body></html>`,
+    { status: l ? 200 : 404, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
+}
+
+// ——— strumenti didattici: una prima proposta scritta dall'AI, nel formato a righe che la pagina sa disegnare ———
+const MAX_STRUMENTI_GIORNO = 40;
+const FORMATI = {
+  mappa: `a MIND MAP as an indented outline. Each line is one short idea (2-6 words). Top-level lines (no indent) are the 4-7 main branches; indent with exactly two spaces per level for details (at most 3 levels). Do not repeat the title as a line. No bullets, no numbering.`,
+  glossario: `a GLOSSARY of the 8-15 key terms. One term per line, in the form: term: short plain explanation (one sentence).`,
+  tempo: `a TIMELINE of the dated events mentioned (or essential to understand the topic). One event per line, in chronological order, in the form: date: what happened (one sentence). If there are no dates at all, answer with the main stages in order, as: stage 1: …`,
+  domande: `8-12 REVIEW QUESTIONS to study the topic, from simple recall to reasoning. One per line, in the form: question? short answer (one or two sentences). Each line must contain the question mark.`,
+};
+async function proponiStrumento(req, env) {
+  const c = await req.json().catch(() => ({}));
+  const formato = FORMATI[c.tipo];
+  const materiale = String(c.materiale || "").slice(0, 9000);
+  if (!formato || materiale.length < 80) return [{ errore: "materiale" }, 0, 400];
+  const ip = req.headers.get("cf-connecting-ip") || "";
+  const chiave = `strumenti:${ip}:${new Date().toISOString().slice(0, 10)}`;
+  const fatte = Number(await env.LAVAGNA.get(chiave)) || 0;
+  if (fatte >= MAX_STRUMENTI_GIORNO) return [{ errore: "troppe" }, 0, 429];
+  await env.LAVAGNA.put(chiave, String(fatte + 1), { expirationTtl: 86400 });
+  // la lingua del materiale (parole frequenti): le proposte si scrivono in quella
+  const PAROLE_LINGUA = { it: ["il", "che", "di", "la", "non", "una", "per", "sono", "questo", "anche"], en: ["the", "and", "that", "is", "of", "to", "this", "you", "with", "are"],
+    es: ["el", "que", "los", "las", "una", "por", "para", "es", "con", "del"], de: ["der", "die", "und", "das", "ist", "nicht", "ein", "mit", "sich", "auch"], fr: ["le", "les", "et", "est", "une", "des", "que", "pas", "pour", "dans"] };
+  const parole = materiale.toLowerCase().split(/[^\p{L}]+/u);
+  const conta = Object.fromEntries(Object.entries(PAROLE_LINGUA).map(([k, l]) => [k, parole.filter((p) => l.includes(p)).length]));
+  const codice = Object.entries(conta).sort((a, b) => b[1] - a[1])[0][0];
+  const lingua = { it: "Italian", en: "English", es: "Spanish", de: "German", fr: "French" }[codice];
+  const sistema = `Answer ONLY in ${lingua}. You help teachers and students study. From the lesson material (titles, comments and transcripts of video excerpts) write ${formato}
+Use only facts that are in the material or are basic, certain knowledge about the topic. Every line must say something different: no repetitions.
+Ignore sponsorships, channel names, series titles and calls to subscribe. Write everything in ${lingua}, even if parts of the material are in another language. Output ONLY the lines, nothing before or after.`;
+  for (const modello of MODELLI_TESTO) {
+    try {
+      const r = await env.AI.run(modello, { messages: [{ role: "system", content: sistema }, { role: "user", content: `Lesson title: ${String(c.titolo || "").slice(0, 200)}\n\nMaterial:\n${materiale}` }], max_tokens: 1200 });
+      let testo = typeof r.response === "string" ? r.response : r.choices?.[0]?.message?.content || "";
+      testo = testo.replace(/```[a-z]*\n?/g, "").split("\n").filter((x) => x.trim() && !/^(here|ecco|sure|certo)\b/i.test(x.trim())).join("\n").trim();
+      if (c.tipo !== "mappa") {
+        let righe = testo.split("\n").map((x) => x.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").replace(/\*\*/g, "").replace(/^(Q|A|D|R|Domanda|Risposta|Question|Answer)\s*[:.]\s*/i, "").trim()).filter(Boolean);
+        // domande con la risposta sulla riga dopo: si rimettono insieme
+        if (c.tipo === "domande") { const unite = []; for (const r of righe) { const ult = unite.at(-1); if (ult && /\?\s*$/.test(ult) && !r.includes("?")) unite[unite.length - 1] = `${ult} ${r}`; else unite.push(r); } righe = unite; }
+        testo = righe.join("\n");
+      }
+      else {
+        let righe = testo.split("\n").map((x) => x.replace(/\t/g, "  ").replace(/^(\s*)(?:[-*•]|\d+[.)])\s*/, "$1").replace(/\*\*/g, ""));
+        // se ha messo il titolo come unica radice, si toglie: il titolo sta già al centro della mappa
+        const cime = righe.filter((x) => !/^\s/.test(x));
+        if (cime.length === 1 && righe.length > 2) righe = righe.slice(righe.indexOf(cime[0]) + 1).map((x) => x.replace(/^  /, ""));
+        testo = righe.join("\n");
+      }
+      if (testo.length > 20) return [{ testo: testo.slice(0, 6000) }];
+    } catch {}
+  }
+  return [{ errore: "ai" }, 0, 502];
 }
 
 export default {
@@ -473,6 +579,8 @@ export default {
     // link condiviso: lavagna…/v/ID → anteprima con titolo e miniatura, poi il video in Lavagna
     const condiviso = pathname.match(/^\/v\/([\w-]{11})\/?$/);
     if (condiviso) return paginaCondivisa(env, condiviso[1], origin);
+    const lezione = pathname.match(/^\/l\/([a-z0-9]{6,20})\/?$/);
+    if (lezione) return paginaLezione(env, lezione[1], origin);
 
     // Liste di video: pronte in cache (10 minuti le sezioni, 2–5 il resto), così mille visite non rifanno mille volte lo stesso lavoro.
     // La chiave cambia quando cambiano i canali (aggiunti/tolti), quindi le modifiche si vedono subito.
@@ -503,6 +611,89 @@ export default {
     ctx.waitUntil(lavoroPeriodico(env, { elenco, feed }));
   },
 
+  async parlato(req, env, pathname) {
+    const chiaveScript = () => env.SCRIPT_KEY && req.headers.get("x-chiave-script") === env.SCRIPT_KEY;
+    // una lezione condivisa (sola lettura)
+    let m = pathname.match(/^\/api\/lezione\/([a-z0-9]{6,20})$/);
+    if (m) {
+      const r = await env.DB.prepare("SELECT dati, aggiornato FROM quaderno WHERE pubblico = ? AND tipo = 'lezione'").bind(m[1]).first();
+      return r ? json({ ...JSON.parse(r.dati), id: undefined, aggiornato: r.aggiornato }, 60) : json({ errore: "Not found." }, 0, 404);
+    }
+    if (!env.PARLATO) return json({ errore: "manca il database del parlato" }, 0, 503);
+    // ricerca nel parlato di tutti i video trascritti
+    if (pathname === "/api/parlato" && req.method === "GET") {
+      const q = (new URL(req.url).searchParams.get("q") || "").trim().slice(0, 120);
+      if (q.length < 2) return json([]);
+      const trovati = await cercaParlato(env, q);
+      const ids = [...new Set(trovati.map((x) => x.id))];
+      const info = ids.length ? (await env.DB.prepare(`SELECT id, titolo, canale, nome_canale, durata, cat, lingua, data, viste FROM video WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results : [];
+      return json(trovati.map((x) => { const v = info.find((i) => i.id === x.id); return { ...x, titolo: v?.titolo || "", canale: v?.canale || "", nomeCanale: v?.nome_canale || "", durata: v?.durata || 0, cat: v?.cat || "", lingua: x.lingua || v?.lingua || "", data: v?.data || "" }; }), 600);
+    }
+    // per lo script dal Mac: quali video non hanno ancora la trascrizione (prima quelli chiesti, poi i più visti)
+    if (pathname === "/api/parlato/mancanti") {
+      if (!chiaveScript()) return json({ errore: "chiave" }, 0, 401);
+      const quanti = Math.min(200, Number(new URL(req.url).searchParams.get("n")) || 50);
+      const chiesti = (await env.PARLATO.prepare("SELECT id FROM richieste ORDER BY volte DESC, ultima DESC LIMIT ?").bind(quanti).all()).results.map((r) => r.id);
+      const dopo = Number(new URL(req.url).searchParams.get("dopo")) || 0;
+      const candidati = (await env.DB.prepare("SELECT id FROM video WHERE fonte = 'yt' AND durata >= 120 ORDER BY viste DESC LIMIT 400 OFFSET ?").bind(dopo).all()).results.map((r) => r.id);
+      const tutti = [...new Set([...chiesti, ...candidati])];
+      const gia = new Set();
+      for (let i = 0; i < tutti.length; i += 90) {
+        const pezzo = tutti.slice(i, i + 90);
+        (await env.PARLATO.prepare(`SELECT id FROM trascrizioni WHERE id IN (${pezzo.map(() => "?").join(",")})`).bind(...pezzo).all()).results.forEach((r) => gia.add(r.id));
+      }
+      return json({ ids: tutti.filter((x) => !gia.has(x)).slice(0, quanti), prossimo: dopo + 400 });
+    }
+    if (pathname === "/api/parlato/carica" && req.method === "POST") {
+      if (!chiaveScript()) return json({ errore: "chiave" }, 0, 401);
+      const c = await req.json().catch(() => ({}));
+      if (!/^[\w-]{11}$/.test(c.id || "")) return json({ errore: "id" }, 0, 400);
+      const r = await salvaTrascrizione(env, c.id, { lingua: c.lingua, fonte: c.fonte === "yt-auto" ? "yt-auto" : "yt", righe: c.righe, storyboard: c.storyboard });
+      await caches.default.delete(new Request(`https://cache.lavagna/parlato/${c.id}`)).catch(() => {});
+      return json(r);
+    }
+    m = pathname.match(/^\/api\/parlato\/([\w-]{11})(\/gemini)?$/);
+    if (m) {
+      const id = m[1], chiave = new Request(`https://cache.lavagna/parlato/${id}`);
+      if (!m[2]) {
+        const pronta = await caches.default.match(chiave);
+        if (pronta) return pronta;
+        const t = await leggiTrascrizione(env, id);
+        if (!t) { await segnaRichiesta(env, id).catch(() => {}); return json({ manca: true }, 600, 404); }
+        const r = json(t, t.righe.length ? 86400 : 3600);
+        await caches.default.put(chiave, r.clone()).catch(() => {});
+        return r;
+      }
+      // con la chiave Gemini di chi guarda: passa solo di qui, non si salva né si scrive da nessuna parte
+      if (req.method !== "POST") return json({ errore: "POST" }, 0, 405);
+      const g = (req.headers.get("x-gemini-key") || "").trim();
+      if (!/^[\w-]{20,80}$/.test(g)) return json({ errore: "chiave" }, 0, 400);
+      const gia = await leggiTrascrizione(env, id);
+      if (gia?.righe.length) return json(gia);
+      const info = await infoVideo(env, id).catch(() => null);
+      if (!info) return json({ errore: "video" }, 0, 404);
+      const r = await trascriviConGemini(env, id, g, info.durata || 0, req.headers.get("cf-connecting-ip") || "");
+      if (r.errore) return json({ errore: r.errore, dettaglio: r.dettaglio }, 0, r.stato || 502);
+      if (!r.righe.length) return json({ errore: "vuota" }, 0, 422);
+      await salvaTrascrizione(env, id, { lingua: info.lingua || "", fonte: "gemini", righe: r.righe });
+      await caches.default.delete(chiave).catch(() => {});
+      return json(await leggiTrascrizione(env, id));
+    }
+    m = pathname.match(/^\/api\/fotogrammi\/([\w-]{11})$/);
+    if (m) return json(await infoFotogrammi(env, m[1]), 3600);
+    m = pathname.match(/^\/api\/foglio\/([\w-]{11})\/(mq|\d{1,4})$/);
+    if (m) {
+      const chiave = new Request(`https://cache.lavagna/foglio/${m[1]}/${m[2]}`);
+      const pronta = await caches.default.match(chiave);
+      if (pronta) return pronta;
+      const r = await foglio(env, m[1], m[2]);
+      if (!r) return json({ errore: "immagine" }, 0, 404);
+      await caches.default.put(chiave, r.clone()).catch(() => {});
+      return r;
+    }
+    return json({ errore: "?" }, 0, 404);
+  },
+
   async rispondi(req, env, pathname) {
     if (pathname.startsWith("/api/conto")) return gestisciConto(req, env, pathname);
     if (pathname.startsWith("/api/mio")) return laMia(req, env, pathname);
@@ -511,6 +702,11 @@ export default {
       return json(await cerca(env, p), p.q ? 300 : 120);
     }
     if (pathname === "/api/indice") return json(await statoIndice(env));
+    // ——— strumenti didattici proposti dall'AI (mappa, glossario, linea del tempo, domande) dai pezzi di video di una lezione ———
+    if (pathname === "/api/strumento" && req.method === "POST") return json(...(await proponiStrumento(req, env)));
+    // ——— il parlato dei video ———
+    if (pathname.startsWith("/api/parlato") || pathname.startsWith("/api/fotogrammi/") || pathname.startsWith("/api/foglio/") || pathname.startsWith("/api/lezione/"))
+      return this.parlato(req, env, pathname);
     // ricerca dentro YouTube (senza Shorts): i risultati di una stessa ricerca restano in cache un'ora
     if (pathname === "/api/youtube") {
       const p = new URL(req.url).searchParams;

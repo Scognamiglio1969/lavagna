@@ -1,5 +1,6 @@
 // Lavagna — una pagina, rotte con l'hash: #/, #/c/scienza, #/ch/UC…, #/v/ID, #/cerca/parole, #/salvati, #/tv, #/canali
 // I video vengono da più fonti (campo `fonte`): YouTube (nessun campo), "ia" Internet Archive, "vimeo", "pt" PeerTube.
+import { installa, pannelloVideo, sezioneParlato, vistaScuola, vistaLezione, vistaLezionePubblica, vistaPresenta } from "./studio.js";
 const $ = (s) => document.querySelector(s);
 const vista = $("#vista");
 
@@ -75,7 +76,7 @@ const T = {
     audioNota: "Audio: when a video has several audio tracks, YouTube plays the one in your language. You can change it in the player: ⚙ › Audio track.",
     impostazioni: "Settings", linguaUi: "Interface language", tema: "Theme", auto: "Auto", chiaro: "Light", scuro: "Dark",
     videoPrec: "Previous video", videoSucc: "Next video",
-    mia: "My Lavagna", account: "Account", ciao: (n) => `Hi, ${n}`, esciConto: "Sign out", cancellaConto: "Delete my account",
+    scuola: "School", mia: "My Lavagna", account: "Account", ciao: (n) => `Hi, ${n}`, esciConto: "Sign out", cancellaConto: "Delete my account",
     cancellaConferma: "Delete your account, your passkey and everything you added? This can't be undone.",
     creaConto: "Create account", entraPasskey: "Sign in with a passkey", tuoNome: "Your name or nickname",
     passkeySpiega: "No email, no password: you sign in with Face ID, Touch ID, your fingerprint or a security key (a passkey).",
@@ -162,7 +163,7 @@ const T = {
     audioNota: "Audio: se un video ha più tracce audio, YouTube usa quella nella tua lingua. Puoi cambiarla dal lettore: ⚙ › Traccia audio.",
     impostazioni: "Impostazioni", linguaUi: "Lingua dell'interfaccia", tema: "Tema", auto: "Automatico", chiaro: "Chiaro", scuro: "Scuro",
     videoPrec: "Video precedente", videoSucc: "Video successivo",
-    mia: "La mia Lavagna", account: "Account", ciao: (n) => `Ciao, ${n}`, esciConto: "Esci", cancellaConto: "Cancella il mio account",
+    scuola: "Scuola", mia: "La mia Lavagna", account: "Account", ciao: (n) => `Ciao, ${n}`, esciConto: "Esci", cancellaConto: "Cancella il mio account",
     cancellaConferma: "Cancello il tuo account, la tua passkey e tutto ciò che hai aggiunto? Non si può annullare.",
     creaConto: "Crea account", entraPasskey: "Entra con la passkey", tuoNome: "Il tuo nome o un nomignolo",
     passkeySpiega: "Niente email, niente password: entri con Face ID, Touch ID, l'impronta o una chiave di sicurezza (una passkey).",
@@ -356,7 +357,7 @@ function schede(attiva) {
     + `<button class="arg-apri${cat ? " on" : ""}" id="apriArgomenti" aria-expanded="false" aria-controls="argomenti">
         <span class="s">${cat ? cat.segno : "▦"}</span>${cat ? esc(nomeDi(cat)) : t("argomenti")} <span class="freccia">▾</span></button>`
     + voce("tv", t("tv"), "▶") + voce("esplora", t("esplora"), "⌕") + voce("salvati", t("daVedere"), "★")
-    + (io ? voce("mia", t("mia"), "◎") : "") + voce("canali", t("canali"), "+");
+    + voce("scuola", t("scuola"), "✎") + (io ? voce("mia", t("mia"), "◎") : "") + voce("canali", t("canali"), "+");
   const pannello = $("#argomenti");
   pannello.hidden = true;
   $("#apriArgomenti").onclick = (e) => {
@@ -448,9 +449,9 @@ async function vistaCerca(q = "") {
       <select name="fonte" aria-label="${t("fonte")}">${opz(FONTI(), filtriCerca.fonte)}</select>
       ${q ? "" : `<select name="ordine" aria-label="${t("ordine")}">${opz([["data", t("recenti")], ["viste", t("piuVisti")]], filtriCerca.ordine)}</select>`}
     </form>
-    ${q ? `<section class="su-yt" id="suYT"></section>` : ""}
+    ${q ? `<section id="nelParlato"></section><section class="su-yt" id="suYT"></section>` : ""}
     <div id="esiti">${attesa()}</div>`;
-  if (q) cercaYouTube(q, $("#suYT"));
+  if (q) { sezioneParlato($("#nelParlato"), q); cercaYouTube(q, $("#suYT")); }
   $("#filtri").onchange = (e) => {
     filtriCerca = { ...filtriCerca, [e.target.name]: e.target.value };
     memo.set("filtri", filtriCerca);
@@ -648,15 +649,21 @@ async function vistaVideo(id) {
   schede("-");
   vista.innerHTML = `<div class="guarda"><div><div class="schermo" id="schermo"></div>
     <div class="comandi-video" id="comandi"></div>
-    <div id="info"></div></div><aside class="lato" id="lato"></aside></div>`;
+    <div id="info"></div></div><aside class="lato"><div id="studio"></div><div id="lato"></div></aside></div>`;
   window.scrollTo(0, 0);
   visti.add(id); memo.set("visti", [...visti].slice(-2000));
   const yt = !/^(ia|vm|pt|rai):/.test(id);
   let lettore = null, chiuso = false;
   const cb = { fine() {}, errore() {}, stato() {} };
   const comandi = barraVideo($("#comandi"), () => lettore, () => $("#schermo"));
-  pulisci = () => { chiuso = true; comandi.chiudi(); try { lettore?.chiudi(); } catch {} };
-  const pronto = (l) => { if (chiuso) { l.chiudi(); return; } lettore = l; l.velocita?.(memo.get("velocita", 1)); comandi.attiva(!!l.velocita); };
+  const studio = yt ? pannelloVideo($("#studio"), { id, titolo: "", nomeCanale: "", durata: 0 }, () => lettore) : null;
+  pulisci = () => { chiuso = true; comandi.chiudi(); studio?.chiudi(); try { lettore?.chiudi(); } catch {} };
+  const pronto = (l) => {
+    if (chiuso) { l.chiudi(); return; }
+    lettore = l; l.velocita?.(memo.get("velocita", 1)); comandi.attiva(!!l.velocita);
+    // aperto da un momento preciso (ricerca nel parlato, appunti, lezioni)
+    if (partenza?.id === id) { const t0 = partenza.t; partenza = null; setTimeout(() => { try { l.vai(t0); } catch {} }, 400); }
+  };
   const permesso = chiediEsterno($("#schermo"), yt ? "YouTube" : nomeFonte({ fonte: id.split(":")[0] === "vm" ? "vimeo" : id.split(":")[0] }));
   if (yt) permesso.then(() => !chiuso && lettoreYT($("#schermo"), id, memo.get("tvVol", 80), cb, true).then(pronto)).catch(() => {});
   let v = await trova(id);
@@ -671,6 +678,7 @@ async function vistaVideo(id) {
   } else if (v.fonte === "vimeo") pronto(await lettoreVimeo($("#schermo"), v.embed, 100, cb, true));
   else if (v.fonte === "pt") { await lettoreSemplice(v, $("#schermo")); comandi.attiva(false); } // PeerTube: velocità dal suo menu
   document.title = `${v.titolo} — Lavagna`;
+  if (studio) studio.video?.(v);
   // frecce: ordine dell'elenco da cui sei arrivato, altrimenti i video dello stesso argomento
   const elencoFrecce = sequenza.includes(id) ? sequenza : filtra(await categoria(v.cat).catch(() => [])).map((x) => x.id);
   const i = elencoFrecce.indexOf(id);
@@ -1321,6 +1329,11 @@ function rotta() {
   if (tipo === "tv") return vistaTV();
   if (tipo === "privacy") return vistaPrivacy();
   if (tipo === "mia") return vistaMia();
+  if (tipo === "scuola") return vistaScuola();
+  if (tipo === "lezione" && arg) return vistaLezione(arg);
+  if (tipo === "presenta" && arg) return vistaPresenta(arg);
+  if (tipo === "presenta-l" && arg) return vistaPresenta(arg, true);
+  if (tipo === "l" && arg) return vistaLezionePubblica(arg);
   $("#q").value = "";
   return home();
 }
@@ -1380,6 +1393,16 @@ caricaCaratteri();
 if (!consenso()) mostraCookie();
 
 // ——— avvio ———
+// aprire un video da un momento preciso
+let partenza = null;
+function apriVideo(id, t) {
+  partenza = { id, t: Number(t) || 0 };
+  if (qui(`v/${id}`)) rotta(); else location.hash = link("v", id);
+}
+installa({
+  ui: () => ui, io: () => io, memo, mio, avvisa, schede, vista, apriVideo, caricaScript, linguaSottotitoli,
+  pulisci: (f) => { pulisci = f; },
+});
 $("#linguaVideo").value = lingua;
 $("#linguaVideo").onchange = (e) => {
   lingua = e.target.value; memo.set("lingua", lingua);
