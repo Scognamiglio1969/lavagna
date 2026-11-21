@@ -635,14 +635,15 @@ export default {
       const quanti = Math.min(200, Number(new URL(req.url).searchParams.get("n")) || 50);
       const chiesti = (await env.PARLATO.prepare("SELECT id FROM richieste ORDER BY volte DESC, ultima DESC LIMIT ?").bind(quanti).all()).results.map((r) => r.id);
       const dopo = Number(new URL(req.url).searchParams.get("dopo")) || 0;
-      const candidati = (await env.DB.prepare("SELECT id FROM video WHERE fonte = 'yt' AND durata >= 120 ORDER BY viste DESC LIMIT 400 OFFSET ?").bind(dopo).all()).results.map((r) => r.id);
+      const soloRichieste = new URL(req.url).searchParams.get("solo") === "richieste";
+      const candidati = soloRichieste ? [] : (await env.DB.prepare("SELECT id FROM video WHERE fonte = 'yt' AND durata >= 120 ORDER BY viste DESC LIMIT 400 OFFSET ?").bind(dopo).all()).results.map((r) => r.id);
       const tutti = [...new Set([...chiesti, ...candidati])];
       const gia = new Set();
       for (let i = 0; i < tutti.length; i += 90) {
         const pezzo = tutti.slice(i, i + 90);
         (await env.PARLATO.prepare(`SELECT id FROM trascrizioni WHERE id IN (${pezzo.map(() => "?").join(",")})`).bind(...pezzo).all()).results.forEach((r) => gia.add(r.id));
       }
-      return json({ ids: tutti.filter((x) => !gia.has(x)).slice(0, quanti), prossimo: dopo + 400 });
+      return json({ ids: tutti.filter((x) => !gia.has(x)).slice(0, quanti), prossimo: soloRichieste ? 99999 : dopo + 400 });
     }
     if (pathname === "/api/parlato/carica" && req.method === "POST") {
       if (!chiaveScript()) return json({ errore: "chiave" }, 0, 401);

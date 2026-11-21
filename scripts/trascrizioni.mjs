@@ -5,17 +5,30 @@
 //   node scripts/trascrizioni.mjs 1000         → quanti video fare in questo giro
 //   node scripts/trascrizioni.mjs 50 --locale  → verso il server di prova sul Mac (wrangler dev, porta 8797)
 //   node scripts/trascrizioni.mjs --video ID   → un video solo
+//   node scripts/trascrizioni.mjs --richieste  → solo i video che qualcuno ha chiesto (veloce: va bene ogni pochi minuti)
 //
 // Va piano apposta (un video ogni ~1,5 secondi). Ogni video costa ~20-40 righe scritte nel database:
 // il piano gratuito ne permette 100.000 al giorno per tutto l'account, quindi meglio non più di ~1000 video al giorno.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, unlinkSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+// un giro per volta: se ne sta già girando un altro, questo si ferma subito
+const BLOCCO = join(tmpdir(), "lavagna-trascrizioni.lock");
+if (existsSync(BLOCCO)) {
+  const pid = Number(readFileSync(BLOCCO, "utf8"));
+  try { process.kill(pid, 0); console.log(`C'è già un giro in corso (processo ${pid}).`); process.exit(0); } catch {}
+}
+writeFileSync(BLOCCO, String(process.pid));
+process.on("exit", () => { try { if (readFileSync(BLOCCO, "utf8") === String(process.pid)) unlinkSync(BLOCCO); } catch {} });
 
 const env = Object.fromEntries(readFileSync(new URL("../.env", import.meta.url), "utf8").split("\n")
   .map((r) => r.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map((m) => [m[1], m[2].trim()]));
 const argomenti = process.argv.slice(2);
 const LOCALE = argomenti.includes("--locale");
 const SITO = LOCALE ? "http://localhost:8797" : "https://lavagna.lavagna-video.workers.dev";
+const RICHIESTE = argomenti.includes("--richieste");
 const SOLO = argomenti.includes("--video") ? argomenti[argomenti.indexOf("--video") + 1] : "";
 const QUANTI = Number(argomenti.find((a) => /^\d+$/.test(a))) || 300;
 const CHIAVE = env.SCRIPT_KEY;
@@ -69,18 +82,19 @@ async function daFare() {
   const lista = [];
   let dopo = 0;
   while (lista.length < QUANTI && dopo < 20000) {
-    const r = await fetch(`${SITO}/api/parlato/mancanti?n=${Math.min(200, QUANTI - lista.length)}&dopo=${dopo}`, { headers: { "x-chiave-script": CHIAVE } });
+    const r = await fetch(`${SITO}/api/parlato/mancanti?n=${Math.min(200, QUANTI - lista.length)}&dopo=${dopo}${RICHIESTE ? "&solo=richieste" : ""}`, { headers: { "x-chiave-script": CHIAVE } });
     if (!r.ok) throw new Error(`mancanti: ${r.status} ${await r.text()}`);
     const d = await r.json();
     for (const id of d.ids) if (!lista.includes(id)) lista.push(id);
     dopo = d.prossimo;
-    if (!d.ids.length && dopo > 15000) break;
+    if (RICHIESTE || (!d.ids.length && dopo > 15000)) break;
   }
   return lista.slice(0, QUANTI);
 }
 
 const lista = await daFare();
-console.log(`${lista.length} video da trascrivere → ${SITO}`);
+console.log(`${new Date().toLocaleString("it-IT")} · ${lista.length} video da trascrivere → ${SITO}`);
+if (!lista.length) process.exit(0);
 let fatti = 0, senza = 0, errori = 0;
 for (const [i, id] of lista.entries()) {
   try {

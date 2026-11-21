@@ -21,6 +21,7 @@ const S = {
     erroreChiave: "Gemini did not accept the key. Check it on Google AI Studio.", erroreQuota: "Your Gemini key has reached its limit for now. Try again later.",
     erroreTroppe: "Too many transcriptions from here today. Try again tomorrow.", erroreGemini: "Gemini could not transcribe this video.", erroreVuota: "Gemini found no speech in this video.",
     fonte: { yt: "Subtitles from YouTube", "yt-auto": "YouTube automatic subtitles", gemini: "Transcribed by Gemini" },
+    subitoT: "Now, with your Gemini key", codaT: "Or wait for it", codaTesto: "The request is recorded: Lavagna transcribes requested videos first, at its next round of transcriptions. Come back later.",
     trovate: (n) => `${n} found`, nienteQui: "Not said in this video.",
     nuovoAppunto: (t) => `✎ New note at ${t}`, da: "From", a: "To", adesso: "now", commento: "Comment", commentoPh: "What matters here, what to remember, what to ask…",
     estratto: "What is said (from the transcript)", salva: "Save", annulla: "Cancel", modifica: "Edit", togli: "Delete", vai: "Play from here",
@@ -58,6 +59,7 @@ const S = {
     erroreChiave: "Gemini non ha accettato la chiave. Controllala su Google AI Studio.", erroreQuota: "La tua chiave Gemini ha finito il limite per ora. Riprova più tardi.",
     erroreTroppe: "Troppe trascrizioni da qui per oggi. Riprova domani.", erroreGemini: "Gemini non è riuscito a trascrivere questo video.", erroreVuota: "Gemini non ha trovato parlato in questo video.",
     fonte: { yt: "Sottotitoli di YouTube", "yt-auto": "Sottotitoli automatici di YouTube", gemini: "Trascritta da Gemini" },
+    subitoT: "Subito, con la tua chiave Gemini", codaT: "Oppure aspetta", codaTesto: "La richiesta è registrata: Lavagna trascrive per primi i video richiesti, al prossimo giro di trascrizioni. Ripassa più tardi.",
     trovate: (n) => `${n} trovate`, nienteQui: "Non si dice in questo video.",
     nuovoAppunto: (t) => `✎ Nuovo appunto a ${t}`, da: "Da", a: "A", adesso: "adesso", commento: "Commento", commentoPh: "Cosa conta qui, cosa ricordare, cosa chiedere…",
     estratto: "Cosa si dice (dalla trascrizione)", salva: "Salva", annulla: "Annulla", modifica: "Modifica", togli: "Togli", vai: "Guarda da qui",
@@ -256,6 +258,37 @@ const menuEsporta = (dove, fai, opz = {}) => {
   sel.onchange = async () => { const f = sel.value; sel.value = ""; if (f) { sel.disabled = true; try { await fai(f); } finally { sel.disabled = false; } } };
 };
 
+// ——— chiedere la trascrizione di un video che non ce l'ha: subito con una chiave Gemini gratuita, oppure in coda ———
+// (la richiesta in coda è già registrata: la pagina ha chiesto la trascrizione e il server se l'è segnata)
+export function chiediTrascrizione(box, id, fonte, fatto) {
+  const chiave = C.memo.get("chiaveGemini", "");
+  box.innerHTML = `<div class="tr-manca"><p><strong>${fonte === "nessuna" ? s("nessunParlato") : s("nessunaTr")}</strong></p>
+    <div class="chiedi-due">
+      <div class="chiedi"><h4>${s("subitoT")}</h4><p class="sotto">${s("conGemini")} <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">${s("prendiChiave")} ↗</a></p>
+        <form class="g-form">${chiave ? "" : `<input type="password" class="g-chiave" placeholder="${s("chiaveGemini")}" autocomplete="off" required aria-label="${s("chiaveGemini")}">`}
+        <button class="bott on">${s("trascrivi")}</button>${chiave ? ` <button type="button" class="link g-cambia">${s("cambiaChiave")}</button>` : ""}</form>
+        <p class="msg g-msg" role="status"></p></div>
+      <div class="chiedi"><h4>${s("codaT")}</h4><p class="sotto">${s("codaTesto")}</p></div>
+    </div></div>`;
+  box.querySelector(".g-cambia")?.addEventListener("click", () => { C.memo.set("chiaveGemini", ""); chiediTrascrizione(box, id, fonte, fatto); });
+  box.querySelector(".g-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const k = chiave || box.querySelector(".g-chiave").value.trim();
+    if (!k) return;
+    const b = e.target.querySelector("button"); b.disabled = true;
+    const msg = box.querySelector(".g-msg");
+    msg.textContent = s("ascolta");
+    const r = await fetch(`/api/parlato/${id}/gemini`, { method: "POST", headers: { "x-gemini-key": k } }).catch(() => null);
+    const d = await r?.json().catch(() => ({})) || {};
+    if (!box.isConnected) return;
+    if (r?.ok && d.righe?.length) { C.memo.set("chiaveGemini", k); trascrizioni.set(id, Promise.resolve(d)); C.avvisa(s("fatta")); fatto?.(); return; }
+    b.disabled = false;
+    if (d.errore === "chiave") C.memo.set("chiaveGemini", "");
+    msg.textContent = { chiave: s("erroreChiave"), quota: s("erroreQuota"), troppe: s("erroreTroppe"), vuota: s("erroreVuota") }[d.errore] || s("erroreGemini");
+    if (d.errore === "chiave") setTimeout(() => chiediTrascrizione(box, id, fonte, fatto), 2500);
+  };
+}
+
 // ——— sotto il video: Trascrizione | Appunti ———
 export function pannelloVideo(dove, v, lettore) {
   let scheda = C.memo.get("schedaStudio", "tr"), giro = null, tr = null, chiuso = false;
@@ -322,35 +355,7 @@ export function pannelloVideo(dove, v, lettore) {
   }
 
   function mancante() {
-    const chiave = C.memo.get("chiaveGemini", "");
-    corpo.innerHTML = `<div class="tr-manca"><p>${tr.fonte === "nessuna" ? s("nessunParlato") : s("nessunaTr")}</p>
-      <p class="sotto">${s("conGemini")} <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">${s("prendiChiave")} ↗</a></p>
-      <form id="gForm" class="g-form">${chiave ? "" : `<input type="password" id="gChiave" placeholder="${s("chiaveGemini")}" autocomplete="off" required aria-label="${s("chiaveGemini")}">`}
-        <button class="bott on">${s("trascrivi")}</button>${chiave ? ` <button type="button" class="link" id="gCambia">${s("cambiaChiave")}</button>` : ""}</form>
-      <p class="msg" id="gMsg" role="status"></p></div>`;
-    $("#gCambia", corpo)?.addEventListener("click", () => { C.memo.set("chiaveGemini", ""); mancante(); });
-    $("#gForm", corpo).onsubmit = async (e) => {
-      e.preventDefault();
-      const k = chiave || $("#gChiave", corpo).value.trim();
-      if (!k) return;
-      const b = e.target.querySelector("button"); b.disabled = true;
-      $("#gMsg", corpo).textContent = s("ascolta");
-      const r = await fetch(`/api/parlato/${v.id}/gemini`, { method: "POST", headers: { "x-gemini-key": k } }).catch(() => null);
-      const d = await r?.json().catch(() => ({})) || {};
-      if (chiuso) return;
-      if (r?.ok && d.righe?.length) {
-        C.memo.set("chiaveGemini", k);
-        trascrizioni.set(v.id, Promise.resolve(d));
-        C.avvisa(s("fatta"));
-        if (scheda === "tr") mostraTrascrizione();
-        return;
-      }
-      b.disabled = false;
-      const e2 = d.errore;
-      if (e2 === "chiave") C.memo.set("chiaveGemini", "");
-      $("#gMsg", corpo).textContent = { chiave: s("erroreChiave"), quota: s("erroreQuota"), troppe: s("erroreTroppe"), vuota: s("erroreVuota") }[e2] || s("erroreGemini");
-      if (e2 === "chiave") setTimeout(mancante, 2500);
-    };
+    chiediTrascrizione(corpo, v.id, tr.fonte, () => { if (!chiuso && scheda === "tr") mostraTrascrizione(); });
   }
 
   async function mostraAppunti() {
@@ -656,10 +661,14 @@ const PAROLE_W = {
     cesto: (n) => `In the lesson: ${n} video${n === 1 ? "" : "s"}`, cestoVuoto: "Nothing yet: add videos from the list.",
     nienteQui: "Nothing here. Try other words or another tab.", cercando: "Searching…",
     incolla: "Paste a YouTube link (with or without the minute)", aggiungiLink: "Add",
-    g3: "Put the pieces in order with ↑ ↓. For each video choose where it starts and ends: open «Choose the piece» and tap two sentences. Between videos you can add a title, a text or a question.",
+    g3: "For each video choose the piece to show: «✂ Choose the piece» if it has a transcript (search a word, tap where it starts and where it ends), or «▶ Watch and mark». Several pieces of the same video: «＋ Another piece». Order with ↑ ↓; between blocks you can add a title, a text or a question.",
     scegliPezzo: "✂ Choose the piece", chiudiPezzo: "Close", tocca: "Tap the sentence where the piece starts, then the one where it ends.",
     toccaFine: "Now tap where it ends.", provaPezzo: "▶ Try the piece", senzaTrascrizione: "No transcript for this video: type the minutes, or try the piece to find them.",
     qui: "Here:", altroVideo: "＋ Video",
+    guardaSegna: "▶ Watch and mark", altroPezzo: "＋ Another piece of this video",
+    sp1: "Search a word (or scroll).", sp2: "Tap the sentence where the piece starts.", sp3: "Tap the sentence where it ends. Need more pieces? «＋ Another piece».",
+    fatto: (a, b) => `Piece: ${a}–${b}.`, oppureGuarda: "Meanwhile you can use «▶ Watch and mark»: play the video and press «Start here» and «End here».",
+    guardaIstr: "Play the video; when the piece starts press «Start here», when it ends «End here».", inizioQui: "⏱ Start here", fineQui: "⏱ End here",
     g4: "Try it as your class will see it, then publish it: you get a link to send. You can also download it.",
     riepilogo: (b, v, d) => `${b} blocks · ${v} video excerpts · ${d} of video`,
     prova: "▶ Try the presentation", pubblicaLink: "Publish with a link", pubblicata: "Published. Send this link:", copia: "Copy",
@@ -679,10 +688,14 @@ const PAROLE_W = {
     cesto: (n) => `Nella lezione: ${n} video`, cestoVuoto: "Ancora niente: aggiungi video dall'elenco.",
     nienteQui: "Niente qui. Prova altre parole o un'altra scheda.", cercando: "Cerco…",
     incolla: "Incolla un link di YouTube (anche con il minuto)", aggiungiLink: "Aggiungi",
-    g3: "Metti i pezzi in ordine con ↑ ↓. Per ogni video scegli dove comincia e dove finisce: apri «Scegli il pezzo» e tocca due frasi. Fra un video e l'altro puoi mettere un titolo, un testo o una domanda.",
+    g3: "Per ogni video scegli il pezzo da mostrare: «✂ Scegli il pezzo» se ha la trascrizione (cerca una parola, tocca dove comincia e dove finisce), oppure «▶ Guarda e segna». Più pezzi dello stesso video: «＋ Un altro pezzo». L'ordine si cambia con ↑ ↓; fra un blocco e l'altro puoi mettere un titolo, un testo o una domanda.",
     scegliPezzo: "✂ Scegli il pezzo", chiudiPezzo: "Chiudi", tocca: "Tocca la frase dove comincia il pezzo, poi quella dove finisce.",
     toccaFine: "Ora tocca dove finisce.", provaPezzo: "▶ Prova il pezzo", senzaTrascrizione: "Questo video non ha la trascrizione: scrivi i minuti, oppure prova il pezzo per trovarli.",
     qui: "Qui:", altroVideo: "＋ Video",
+    guardaSegna: "▶ Guarda e segna", altroPezzo: "＋ Un altro pezzo di questo video",
+    sp1: "Cerca una parola (o scorri).", sp2: "Tocca la frase dove comincia il pezzo.", sp3: "Tocca la frase dove finisce. Servono altri pezzi? «＋ Un altro pezzo».",
+    fatto: (a, b) => `Pezzo: ${a}–${b}.`, oppureGuarda: "Intanto puoi usare «▶ Guarda e segna»: fai partire il video e premi «Inizio qui» e «Fine qui».",
+    guardaIstr: "Fai partire il video; quando comincia il pezzo premi «Inizio qui», quando finisce «Fine qui».", inizioQui: "⏱ Inizio qui", fineQui: "⏱ Fine qui",
     g4: "Provala come la vedrà la classe, poi pubblicala: avrai un link da mandare. Puoi anche scaricarla.",
     riepilogo: (b, v, d) => `${b} blocchi · ${v} estratti di video · ${d} di video`,
     prova: "▶ Prova la presentazione", pubblicaLink: "Pubblica con un link", pubblicata: "Pubblicata. Manda questo link:", copia: "Copia",
@@ -883,8 +896,9 @@ async function passoMonta(box, l, salvaPresto, titoloPasso) {
       else if (b.tipo === "testo" || b.tipo === "domanda") el.innerHTML = comandi + `<textarea rows="${b.tipo === "testo" ? 4 : 2}" aria-label="${s(b.tipo === "testo" ? "tTesto" : "tDomanda")}">${esc(b.testo)}</textarea>`;
       else el.innerHTML = comandi + `<div class="b-video"><div class="b-schermo"><img class="b-foto" alt=""></div>
           <div class="b-campi"><strong class="b-vtitolo">${esc(b.titoloVideo || b.video)}</strong> <small>${esc(b.nomeCanale || "")}</small>
-          <div class="ap-tempi"><label>${s("da")} <input data-c="da" value="${tempo(b.da)}" size="7"></label><label>${s("a")} <input data-c="a" value="${tempo(b.a)}" size="7"></label>
-            <button type="button" class="bott on piccolo" data-p="scegli">${w("scegliPezzo")}</button><button type="button" class="bott piccolo" data-p="prova">${w("provaPezzo")}</button></div>
+          <div class="ap-tempi"><label>${s("da")} <input data-c="da" value="${tempo(b.da)}" size="7"></label><label>${s("a")} <input data-c="a" value="${tempo(b.a)}" size="7"></label></div>
+          <div class="b-modi"><button type="button" class="bott on piccolo" data-p="scegli">${w("scegliPezzo")}</button><button type="button" class="bott piccolo" data-p="guarda">${w("guardaSegna")}</button>
+            <button type="button" class="bott piccolo" data-p="altro">${w("altroPezzo")}</button></div>
           <div class="b-pezzo" hidden></div>
           <textarea data-c="commento" rows="2" placeholder="${s("commentoPh")}" aria-label="${s("commento")}">${esc(b.commento || "")}</textarea>
           ${b.estratto ? `<blockquote class="b-estr">${esc(b.estratto)}</blockquote>` : ""}
@@ -907,7 +921,8 @@ async function passoMonta(box, l, salvaPresto, titoloPasso) {
         b.estratto = estrattoDa(t.righe, b.da, b.a);
         let q = el.querySelector(".b-estr");
         if (b.estratto) { if (!q) { q = document.createElement("blockquote"); q.className = "b-estr"; el.querySelector("[data-c=commento]").after(q); } q.textContent = b.estratto; }
-        foto(); salvaPresto();
+        if (!el.querySelector(".b-schermo iframe")) foto();
+        salvaPresto();
       };
       el.querySelectorAll("[data-c]").forEach((c) => {
         const k = c.dataset.c;
@@ -922,48 +937,103 @@ async function passoMonta(box, l, salvaPresto, titoloPasso) {
           b[k] = c.value; salvaPresto();
         };
       });
-      // ✂ scegli il pezzo toccando due frasi della trascrizione
-      el.querySelector("[data-p=scegli]").onclick = async () => {
-        const p = el.querySelector(".b-pezzo");
-        if (!p.hidden) { p.hidden = true; p.innerHTML = ""; aperto = null; return; }
-        if (aperto && aperto !== p) { aperto.hidden = true; aperto.innerHTML = ""; }
-        aperto = p; p.hidden = false; p.innerHTML = `<p class="sotto">…</p>`;
+      const pannello = el.querySelector(".b-pezzo");
+      const chiudiPannello = () => { pannello.hidden = true; pannello.innerHTML = ""; delete pannello.dataset.modo; if (aperto === pannello) aperto = null; fermaGiro(); };
+      const apriPannello = (modo) => {
+        if (pannello.dataset.modo === modo) { chiudiPannello(); return false; }
+        if (aperto && aperto !== pannello) aperto.chiudi?.();
+        fermaGiro();
+        aperto = pannello; pannello.chiudi = chiudiPannello; pannello.dataset.modo = modo; pannello.hidden = false;
+        return true;
+      };
+      // ✂ scegli il pezzo dalla trascrizione: cerca una parola, tocca dove comincia e dove finisce
+      async function scegli() {
+        pannello.innerHTML = `<p class="sotto">…</p>`;
         const t = await trascrizione(b.video);
-        if (!t.righe?.length) { p.innerHTML = `<p class="sotto">${w("senzaTrascrizione")}</p>`; return; }
+        if (pannello.dataset.modo !== "scegli") return;
+        if (!t.righe?.length) {
+          chiediTrascrizione(pannello, b.video, t.fonte, () => { if (pannello.dataset.modo === "scegli") scegli(); });
+          pannello.insertAdjacentHTML("beforeend", `<p class="sotto b-oppure">${w("oppureGuarda")}</p>`);
+          return;
+        }
         let inizio = null;
-        p.innerHTML = `<p class="b-istr">${w("tocca")}</p><div class="tr-righe b-righe">${t.righe.map(([tt, x], k) => `<button class="b-riga" data-k="${k}"><span class="tc">${tempo(tt)}</span> ${esc(x)}</button>`).join("")}</div>`;
-        const righe = [...p.querySelectorAll(".b-riga")];
+        pannello.innerHTML = `<ol class="b-passi"><li>${w("sp1")}</li><li>${w("sp2")}</li><li>${w("sp3")}</li></ol>
+          <div class="tr-barra"><input type="search" class="b-cerca" placeholder="${s("cercaQui")}" aria-label="${s("cercaQui")}"><span class="tr-n b-n"></span>
+            <button class="bott piccolo b-su" aria-label="↑">↑</button><button class="bott piccolo b-giu" aria-label="↓">↓</button></div>
+          <p class="b-istr">${w("tocca")}</p>
+          <div class="tr-righe b-righe">${t.righe.map(([tt, x], k) => `<button class="b-riga" data-k="${k}"><span class="tc">${tempo(tt)}</span> ${esc(x)}</button>`).join("")}</div>`;
+        const box = pannello.querySelector(".b-righe"), righe = [...pannello.querySelectorAll(".b-riga")];
+        const vaiA = (r) => { box.scrollTop = r.offsetTop - box.offsetTop - 60; };
         const segna = () => righe.forEach((r, k) => r.classList.toggle("dentro", t.righe[k][0] >= b.da - 0.5 && t.righe[k][0] < b.a));
         segna();
-        const prima = righe.find((r, k) => t.righe[k][0] >= b.da - 0.5);
-        if (prima) p.querySelector(".b-righe").scrollTop = prima.offsetTop - p.querySelector(".b-righe").offsetTop - 40;
-        p.querySelector(".b-righe").onclick = (e) => {
+        const prima = righe.find((r, k) => t.righe[k][0] >= b.da - 0.5); if (prima) vaiA(prima);
+        // cerca dentro la trascrizione
+        const norm = (x) => x.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+        const testi = t.righe.map(([, x]) => norm(x));
+        let trovate = [], qui = 0;
+        const mostra = () => {
+          righe.forEach((r) => r.classList.remove("trovata", "questa"));
+          trovate.forEach((k) => righe[k].classList.add("trovata"));
+          if (trovate.length) { righe[trovate[qui]].classList.add("questa"); vaiA(righe[trovate[qui]]); }
+          pannello.querySelector(".b-n").textContent = pannello.querySelector(".b-cerca").value.trim().length > 1 ? (trovate.length ? `${qui + 1} / ${trovate.length}` : s("nienteQui")) : "";
+        };
+        pannello.querySelector(".b-cerca").oninput = (e) => { const q = norm(e.target.value.trim()); trovate = q.length > 1 ? testi.map((x, k) => (x.includes(q) ? k : -1)).filter((k) => k >= 0) : []; qui = 0; mostra(); };
+        pannello.querySelector(".b-cerca").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); if (trovate.length) { qui = (qui + 1) % trovate.length; mostra(); } } };
+        pannello.querySelector(".b-su").onclick = () => { if (trovate.length) { qui = (qui - 1 + trovate.length) % trovate.length; mostra(); } };
+        pannello.querySelector(".b-giu").onclick = () => { if (trovate.length) { qui = (qui + 1) % trovate.length; mostra(); } };
+        box.onclick = (e) => {
           const r = e.target.closest(".b-riga"); if (!r) return;
           const k = Number(r.dataset.k);
           if (inizio === null) {
             inizio = k; b.da = Math.floor(t.righe[k][0]);
             righe.forEach((x) => x.classList.remove("dentro")); r.classList.add("dentro", "capo");
-            p.querySelector(".b-istr").textContent = w("toccaFine");
+            pannello.querySelector(".b-istr").textContent = w("toccaFine");
             el.querySelector("[data-c=da]").value = tempo(b.da);
           } else {
             const [k1, k2] = k < inizio ? [k, inizio] : [inizio, k];
             b.da = Math.floor(t.righe[k1][0]);
             b.a = Math.ceil(t.righe[k2 + 1]?.[0] ?? t.righe[k2][0] + 5);
             inizio = null; righe.forEach((x) => x.classList.remove("capo"));
-            p.querySelector(".b-istr").textContent = w("tocca");
+            pannello.querySelector(".b-istr").innerHTML = `${esc(w("fatto", tempo(b.da), tempo(b.a)))} <button class="link b-ancora">${w("altroPezzo")}</button>`;
+            pannello.querySelector(".b-ancora").onclick = () => altroPezzo();
             segna(); aggiornaTempi();
           }
         };
-      };
-      el.querySelector("[data-p=prova]").onclick = () => {
+      }
+      // ▶ guarda e segna: il video gira qui, e due pulsanti prendono il momento giusto (va anche senza trascrizione)
+      let giro = null, lettore = null;
+      function fermaGiro() { clearInterval(giro); giro = null; try { lettore?.destroy(); } catch {} lettore = null; const sc = el.querySelector(".b-schermo"); if (sc && !sc.querySelector("img")) { sc.innerHTML = `<img class="b-foto" alt="">`; foto(); } }
+      async function guarda() {
+        pannello.innerHTML = `<p class="b-istr">${w("guardaIstr")}</p><div class="b-segna"><button class="bott on" data-s="da">${w("inizioQui")}</button><button class="bott on" data-s="a">${w("fineQui")}</button><span class="b-ora tr-n"></span></div>`;
         const sc = el.querySelector(".b-schermo");
-        if (sc.querySelector("iframe")) { sc.innerHTML = `<img class="b-foto" alt="">`; foto(); return; }
-        sc.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${b.video}?autoplay=1&start=${Math.floor(b.da)}&end=${Math.ceil(b.a)}&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen title="${esc(b.titoloVideo || "")}"></iframe>`;
-      };
+        sc.innerHTML = `<div class="b-lettore"></div>`;
+        await C.caricaScript("https://www.youtube.com/iframe_api", "onYouTubeIframeAPIReady");
+        if (pannello.dataset.modo !== "guarda") return;
+        lettore = new YT.Player(sc.querySelector(".b-lettore"), { host: "https://www.youtube-nocookie.com", videoId: b.video, playerVars: { autoplay: 1, start: Math.floor(b.da), rel: 0, playsinline: 1 } });
+        giro = setInterval(() => { const o = pannello.querySelector(".b-ora"); if (o) o.textContent = tempo(lettore?.getCurrentTime?.() || 0); }, 500);
+        pannello.querySelectorAll("[data-s]").forEach((x) => x.onclick = () => {
+          const ora = Math.floor(lettore?.getCurrentTime?.() || 0);
+          b[x.dataset.s] = ora;
+          if (b.a <= b.da) b.a = b.da + 30;
+          aggiornaTempi();
+          C.avvisa(`${x.dataset.s === "da" ? s("da") : s("a")} ${tempo(ora)}`);
+        });
+      }
+      // ＋ un altro pezzo dello stesso video, subito sotto
+      function altroPezzo() {
+        const nuovo = { ...b, id: nuovoId(), da: b.a, a: b.a + 30, commento: "", estratto: "" };
+        l.blocchi.splice(i + 1, 0, nuovo); salvaPresto(); disegna();
+        const el2 = lista.querySelector(`[data-id="${nuovo.id}"]`);
+        el2?.scrollIntoView({ block: "center", behavior: "smooth" });
+        el2?.querySelector("[data-p=scegli]")?.click();
+      }
+      el.querySelector("[data-p=scegli]").onclick = () => { if (apriPannello("scegli")) scegli(); };
+      el.querySelector("[data-p=guarda]").onclick = () => { if (apriPannello("guarda")) guarda(); };
+      el.querySelector("[data-p=altro]").onclick = altroPezzo;
     });
   }
   disegna();
-  return () => {};
+  return () => { aperto?.chiudi?.(); };
 }
 
 function passoPubblica(box, l, salvaPresto, titoloPasso) {
