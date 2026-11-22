@@ -476,10 +476,17 @@ export async function sezioneParlato(box, q) {
 }
 
 // ——— Scuola ———
+// avviso: la Scuola è ancora una prima versione, da provare
+const DEMO = {
+  it: "<strong>Versione demo.</strong> La sezione Scuola è ancora preliminare: si può provare tutto, ma qualcosa può cambiare o non funzionare bene. Tieni una copia di quello che ti serve (Esporta).",
+  en: "<strong>Demo version.</strong> The School section is still preliminary: you can try everything, but things may change or not work well. Keep a copy of what you need (Export).",
+};
+const avvisoDemo = () => `<p class="demo-avviso" role="note">${DEMO[C.ui()] || DEMO.en}</p>`;
+
 export async function vistaScuola() {
   C.schede("scuola");
   const vista = C.vista;
-  vista.innerHTML = `<h1>✎ ${s("scuola")}</h1><p class="sotto">${s("scuolaSotto")}</p>
+  vista.innerHTML = `<h1>✎ ${s("scuola")}</h1><p class="sotto">${s("scuolaSotto")}</p>${avvisoDemo()}
     <div class="scuola-porte">
       <section class="porta porta-una"><h2>${s("creaLezione")}</h2><p>${s("creaLezioneSotto")}</p><button class="bott on grande" data-nuova="1">＋ ${s("nuovaLezione")}</button></section>
     </div>
@@ -685,7 +692,7 @@ export async function vistaLezione(arg) {
   C.pulisci(() => { chiudiPasso(); if (timer) { clearTimeout(timer); Q.salva(l).catch(() => {}); } });
   if (l.passo !== passo) { l.passo = passo; salvaPresto(true); }
   const nomi = ["pArgomento", "pVideo", "pMonta", "pPubblica"];
-  vista.innerHTML = `<div class="guidata">
+  vista.innerHTML = `<div class="guidata">${avvisoDemo()}
     <p class="l-su"><a class="link" href="#/scuola">← ${s("scuola")}</a> <span class="l-tipo">${s(studente ? "ricerca" : "lezione")}</span>
       <strong class="l-nome">${esc(l.titolo || s("senzaTitolo"))}</strong> <span class="l-stato" id="lStato"></span></p>
     <ol class="passi">${PASSI.map((p, i) => `<li class="${i === n ? "on" : i < n ? "fatto" : ""}"><a href="#/lezione/${l.id}/${p}"><span class="pn">${i + 1}</span>${w(nomi[i])}</a></li>`).join("")}</ol>

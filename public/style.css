@@ -756,3 +756,7 @@ ol.st-tempo b { display: block; color: var(--accento); }
 .is-nome .link { display: block; margin-bottom: 4px; font-size: 12px; }
 .tl-barra .icona { min-width: 34px; padding: 4px 8px; font-size: 15px; line-height: 1; }
 .tl-barra .bott { white-space: nowrap; }
+.demo-avviso { margin: 10px 0 18px; padding: 10px 14px; border-radius: 10px; border: 1px dashed var(--accento);
+  background: color-mix(in srgb, var(--accento) 9%, var(--carta)); font-size: 13.5px; line-height: 1.45; }
+.demo-avviso strong { color: var(--accento); }
+.guidata .demo-avviso { margin-top: 0; }
