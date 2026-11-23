@@ -886,3 +886,18 @@ body.modo-studio .bp-mappa svg rect[fill="#fbf9f3"] { fill: #f3efe4; }
 .bi { position: relative; }
 .bi-fatto { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
   background: #2fa36b; color: #fff; font: 700 12px/1 Inter, sans-serif; box-shadow: 0 1px 3px rgb(0 0 0 / .2); }
+/* History: i video guardati in sequenza */
+.hi-comandi { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.hi-comandi .bott:disabled { opacity: .45; cursor: default; }
+.hi-gruppo { margin-bottom: 18px; }
+.cron-giorno small { font-weight: 500; color: var(--tenue); margin-left: 6px; }
+.hi-lista { display: flex; flex-direction: column; gap: 4px; max-width: 860px; }
+.hi-riga { display: grid; grid-template-columns: 52px 150px 1fr; gap: 14px; align-items: center; padding: 6px 8px; border-radius: 10px; }
+.hi-riga:hover { background: var(--carta); box-shadow: var(--ombra); }
+.hi-ora { font: 600 13px Inter, sans-serif; color: var(--tenue); font-variant-numeric: tabular-nums; }
+.hi-foto { position: relative; aspect-ratio: 16/9; border-radius: 8px; background-size: cover; background-position: center; background-color: var(--linea); }
+.hi-foto .dur { position: absolute; right: 4px; bottom: 4px; }
+.hi-testo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hi-testo strong { font-size: 15px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.hi-testo small { color: var(--tenue); }
+@media (max-width: 600px) { .hi-riga { grid-template-columns: 40px 110px 1fr; gap: 8px; } .hi-testo strong { font-size: 13.5px; } }

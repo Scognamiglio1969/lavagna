@@ -26,7 +26,10 @@ const T = {
     nessunIscritto: "You don't follow any channel yet: open a channel (or a video) and press «＋ Follow».", daiSeguiti: "From the channels you follow",
     tu: "You", tuSotto: "Your things, on this device: nothing leaves it.", cronologia: "History", cronologiaSotto: "The videos you opened, most recent first.",
     cancellaCronologia: "Clear history", cronologiaChiedi: "Clear the whole history on this device?", cronologiaVuota: "Nothing yet: the videos you open will appear here.",
-    canaliSeguiti: "Channels you follow", vediTutto2: "see all →",
+    canaliSeguiti: "Channels you follow", history: "History", historySotto: "The videos you watched, in order, most recent first. Only on this device.",
+    inSessione: "In this session", cancellaSessione: "Clear this session's history", cancellaTutta: "Clear all history",
+    sessioneChiedi: "Clear the videos watched in this session?", tuttaChiedi: "Clear the whole history on this device? It cannot be undone.", historyVuota: "No videos watched yet: they will appear here, in order.",
+    sessioneVuota: "Nothing watched in this session yet.", nVideo: (n) => `${n} video${n === 1 ? "" : "s"}`, vediTutto2: "see all →",
     homeErrore: "Can't load the home page right now. Try again shortly.",
     evidenza: "Featured", evidenzaSotto: "most watched this week, one per topic", sfoglia: "Browse by topic", nArgomenti: (n) => `${n} topics`,
     novita: "New", novitaSotto: "just out", vediTutto: "see all →", fineHome: (n) => `From ${n} hand-picked channels, with no ads on the page and no Shorts.`,
@@ -121,7 +124,10 @@ const T = {
     nessunIscritto: "Non segui ancora nessun canale: apri un canale (o un video) e premi «＋ Segui».", daiSeguiti: "Dai canali che segui",
     tu: "Tu", tuSotto: "Le tue cose, su questo dispositivo: non escono da qui.", cronologia: "Cronologia", cronologiaSotto: "I video che hai aperto, dal più recente.",
     cancellaCronologia: "Cancella la cronologia", cronologiaChiedi: "Cancellare tutta la cronologia su questo dispositivo?", cronologiaVuota: "Ancora niente: qui compariranno i video che apri.",
-    canaliSeguiti: "Canali che segui", vediTutto2: "vedi tutto →",
+    canaliSeguiti: "Canali che segui", history: "History", historySotto: "I video che hai guardato, in ordine, dal più recente. Solo su questo dispositivo.",
+    inSessione: "In questa sessione", cancellaSessione: "Cancella la history di questa sessione", cancellaTutta: "Cancella tutta la history",
+    sessioneChiedi: "Cancellare i video guardati in questa sessione?", tuttaChiedi: "Cancellare tutta la history su questo dispositivo? Non si può annullare.", historyVuota: "Ancora nessun video guardato: compariranno qui, in ordine.",
+    sessioneVuota: "In questa sessione non hai ancora guardato niente.", nVideo: (n) => `${n} video`, vediTutto2: "vedi tutto →",
     homeErrore: "Non riesco a caricare la home adesso. Riprova tra poco.",
     evidenza: "In evidenza", evidenzaSotto: "i più visti della settimana, uno per sezione", sfoglia: "Sfoglia per argomento", nArgomenti: (n) => `${n} argomenti`,
     novita: "Novità", novitaSotto: "appena usciti", vediTutto: "vedi tutto →", fineHome: (n) => `Da ${n} canali scelti a mano, senza pubblicità in pagina e senza Shorts.`,
@@ -258,7 +264,9 @@ const nomeFonte = (v) => ({ ia: "Internet Archive", vimeo: "Vimeo", pt: "PeerTub
 
 const visti = new Set(memo.get("visti", []));
 let seguiti = memo.get("seguiti", []); // canali seguiti (iscrizioni), solo su questo dispositivo: [{ id, nome }]
-let cronologia = memo.get("cronologia", []); // video aperti, dal più recente: [{ ...video, visto: ms }]
+let cronologia = memo.get("cronologia", []);
+// la «sessione»: da quando Lavagna è aperta in questa scheda del browser (resta finché la scheda resta aperta)
+const inizioSessione = (() => { try { let x = sessionStorage.getItem("inizioSessione"); if (!x) { x = String(Date.now()); sessionStorage.setItem("inizioSessione", x); } return Number(x); } catch { return Date.now(); } })(); // video aperti, dal più recente: [{ ...video, visto: ms }]
 const segue = (id) => seguiti.some((x) => x.id === id);
 const indicizzato = (id) => categorie.some((c) => c.canali.some((x) => x.id === id));
 const bottSegui = (id, nome) => (id && indicizzato(id) ? `<button class="bott segui${segue(id) ? " on" : ""}" data-segui="${esc(id)}" data-nome="${esc(nome || "")}">${segue(id) ? t("seguito") : t("segui")}</button>` : "");
@@ -391,7 +399,7 @@ function schede(attiva) {
     + `<button class="arg-apri${cat ? " on" : ""}" id="apriArgomenti" aria-expanded="false" aria-controls="argomenti">
         <span class="s">${cat ? cat.segno : "▦"}</span>${cat ? esc(nomeDi(cat)) : t("argomenti")} <span class="freccia">▾</span></button>`
     + voce("iscrizioni", t("iscrizioni"), "◉") + voce("tv", t("tv"), "▶") + voce("esplora", t("esplora"), "⌕") + voce("tu", t("tu"), "★")
-    + (io ? voce("mia", t("mia"), "◎") : "") + voce("canali", t("canali"), "+");
+    + (io ? voce("mia", t("mia"), "◎") : "") + voce("canali", t("canali"), "+") + voce("history", t("history"), "↺");
   const pannello = $("#argomenti");
   pannello.hidden = true;
   $("#apriArgomenti").onclick = (e) => {
@@ -453,6 +461,28 @@ async function vistaIscrizioni() {
   vista.innerHTML = testa + canali + griglia(v);
 }
 
+function vistaHistory() {
+  schede("history");
+  const giorno = (ms) => { const d = new Date(ms), oggi = new Date(); const g = Math.floor((new Date(oggi.toDateString()) - new Date(d.toDateString())) / 864e5);
+    return g === 0 ? t("oggi") : g === 1 ? t("ieri") : d.toLocaleDateString(ui === "it" ? "it-IT" : "en-GB", { weekday: "long", day: "numeric", month: "long" }); };
+  const ora = (ms) => new Date(ms).toLocaleTimeString(ui === "it" ? "it-IT" : "en-GB", { hour: "2-digit", minute: "2-digit" });
+  const sessione = cronologia.filter((v) => v.visto >= inizioSessione), prima = cronologia.filter((v) => v.visto < inizioSessione);
+  const gruppi = [];
+  if (sessione.length) gruppi.push([t("inSessione"), sessione]);
+  for (const v of prima.slice(0, 300)) { const g = giorno(v.visto); if (gruppi.at(-1)?.[0] !== g) gruppi.push([g, []]); gruppi.at(-1)[1].push(v); }
+  // in sequenza: una riga per video, con l'ora in cui l'hai aperto
+  const riga = (v) => { mostrati.set(v.id, v); return `<a class="hi-riga${visti.has(v.id) ? " gia" : ""}" href="${link("v", v.id)}"><span class="hi-ora">${ora(v.visto)}</span>
+    <span class="hi-foto" style="background-image:url('${esc(miniatura(v))}')">${v.durata ? `<span class="dur">${mmss(v.durata)}</span>` : ""}</span>
+    <span class="hi-testo"><strong>${esc(v.titolo || v.id)}</strong><small>${esc(v.nomeCanale || "")}</small></span></a>`; };
+  vista.innerHTML = `<h1>↺ ${t("history")}</h1><p class="sotto">${t("historySotto")}</p>
+    <div class="hi-comandi"><button class="bott" id="hiSessione" ${sessione.length ? "" : "disabled"}>${t("cancellaSessione")}</button>
+      <button class="bott" id="hiTutta" ${cronologia.length ? "" : "disabled"}>${t("cancellaTutta")}</button></div>
+    ${cronologia.length ? gruppi.map(([g, l]) => `<section class="hi-gruppo"><h3 class="cron-giorno">${esc(g)} <small>${t("nVideo", l.length)}</small></h3><div class="hi-lista">${l.map(riga).join("")}</div></section>`).join("")
+      : `<p class="vuoto">${t("historyVuota")}</p>`}`;
+  $("#hiSessione").onclick = () => { if (!confirm(t("sessioneChiedi"))) return; cronologia = cronologia.filter((v) => v.visto < inizioSessione); memo.set("cronologia", cronologia); avvisa(t("cancellaSessione")); vistaHistory(); };
+  $("#hiTutta").onclick = () => { if (!confirm(t("tuttaChiedi"))) return; cronologia = []; memo.set("cronologia", []); avvisa(t("cancellaTutta")); vistaHistory(); };
+}
+
 function vistaTu() {
   schede("tu");
   const recenti = cronologia.slice(0, 200);
@@ -465,10 +495,8 @@ function vistaTu() {
       ${salvati.length ? griglia(salvati.slice(0, 5)).replace('class="griglia"', 'class="griglia g5"') : `<p class="sotto">${t("daVedereSotto")}</p>`}</section>
     ${seguiti.length ? `<section class="fila"><div class="fila-testa"><h2><a href="#/iscrizioni">◉ ${t("canaliSeguiti")}</a></h2></div>
       <div class="seguiti">${seguiti.map((c) => `<span class="seguito-c"><a href="${link("ch", c.id)}">${esc(c.nome || c.id)}</a>${bottSegui(c.id, c.nome)}</span>`).join("")}</div></section>` : ""}
-    <section class="fila"><div class="fila-testa"><h2>↺ ${t("cronologia")}</h2><span>${t("cronologiaSotto")}</span>
-      ${recenti.length ? `<button class="link tutti" id="cancCron">${t("cancellaCronologia")}</button>` : ""}</div>
-      ${recenti.length ? gruppi.map(([g, l]) => `<h3 class="cron-giorno">${esc(g)}</h3>${griglia(l)}`).join("") : `<p class="vuoto">${t("cronologiaVuota")}</p>`}</section>`;
-  $("#cancCron")?.addEventListener("click", () => { if (!confirm(t("cronologiaChiedi"))) return; cronologia = []; memo.set("cronologia", []); vistaTu(); });
+    <section class="fila"><div class="fila-testa"><h2><a href="#/history">↺ ${t("history")}</a></h2><a class="tutti" href="#/history">${t("vediTutto2")}</a></div>
+      ${recenti.length ? griglia(recenti.slice(0, 5)).replace('class="griglia"', 'class="griglia g5"') : `<p class="sotto">${t("historyVuota")}</p>`}</section>`;
 }
 
 async function vistaCategoria(arg) {
@@ -1416,6 +1444,7 @@ function rotta() {
   if (tipo === "salvati") return vistaSalvati();
   if (tipo === "iscrizioni") return vistaIscrizioni();
   if (tipo === "tu") return vistaTu();
+  if (tipo === "history" || tipo === "cronologia") return vistaHistory();
   if (tipo === "canali") return vistaCanali();
   if (tipo === "tv") return vistaTV();
   if (tipo === "privacy") return vistaPrivacy();
