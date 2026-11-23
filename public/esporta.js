@@ -7,12 +7,12 @@ const tempo = (x) => { x = Math.max(0, Math.floor(Number(x) || 0)); const h = Ma
 const linkYT = (id, t) => `https://www.youtube.com/watch?v=${id}${t ? `&t=${Math.floor(t)}s` : ""}`;
 const nomeFile = (x) => (String(x || "lavagna").normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "lavagna").toLowerCase();
 
-export const PARTI = ["tre", "semplice", "mappa", "domande", "tempo", "contrario", "simili", "appunti", "trascrizione"];
+export const PARTI = ["tre", "capitoli", "semplice", "mappa", "domande", "carte", "tempo", "contrario", "simili", "chieste", "appunti", "trascrizione"];
 
 // ——— 1 · raccogliere tutto (le risposte dell'AI arrivano in parallelo; quelle già fatte sono subito pronte) ———
 export async function raccogli(v, A, scelte, avanza = () => {}) {
   const d = { v, data: new Date() };
-  const ai = ["tre", "semplice", "mappa", "domande", "tempo", "contrario", "simili"].filter((k) => scelte.includes(k));
+  const ai = ["tre", "capitoli", "semplice", "mappa", "domande", "carte", "tempo", "contrario", "simili"].filter((k) => scelte.includes(k));
   // ogni parte ha al massimo un minuto e mezzo: se Gemini non risponde, il documento si fa lo stesso senza
   d.mancanti = [];
   await Promise.all(ai.map(async (k) => {
@@ -27,6 +27,7 @@ export async function raccogli(v, A, scelte, avanza = () => {}) {
     for (const p of d.appunti) p.foto = (await A.fotogramma(v.id, p.da, v.durata).catch(() => null))?.src || null;
     avanza("appunti", true);
   }
+  if (scelte.includes("chieste")) { d.chieste = A.memo.get(`chieste:${v.id}`, []); avanza("chieste", true); }
   if (scelte.includes("trascrizione")) { d.trascrizione = (await A.trascrizione(v.id))?.righe || []; avanza("trascrizione", true); }
   // per la copertina: un fotogramma del video e il logo
   d.copertina = await immagineGrande(v.id).catch(() => null) || (await A.fotogramma(v.id, Math.max(20, (v.durata || 600) * 0.3), v.durata).catch(() => null))?.src || null;
@@ -86,9 +87,10 @@ async function logoPng() {
 }
 
 // l'ordine dei gruppi: ognuno comincia su una pagina sua
-const ORDINE = ["mappa", "tre", "semplice", "domande", "tempo", "contrario", "simili", "appunti", "trascrizione"];
+const ORDINE = ["mappa", "tre", "capitoli", "semplice", "domande", "carte", "tempo", "contrario", "simili", "chieste", "appunti", "trascrizione"];
 const presente = (d, k) => ({ mappa: d.mappa?.png, tre: d.tre?.punti?.length, semplice: d.semplice?.riassunto, domande: d.domande?.domande?.length, tempo: d.tempo?.eventi?.length,
-  contrario: d.contrario?.tesi, simili: d.simili?.momenti?.length, appunti: d.appunti?.length, trascrizione: d.trascrizione?.length })[k];
+  contrario: d.contrario?.tesi, simili: d.simili?.momenti?.length, appunti: d.appunti?.length, trascrizione: d.trascrizione?.length,
+  capitoli: d.capitoli?.capitoli?.length, carte: d.carte?.carte?.length, chieste: d.chieste?.length })[k];
 const titoloSezione = (p, k) => p({ appunti: "ap", trascrizione: "tr" }[k] || k);
 const quandoCreata = (d, A) => d.data.toLocaleDateString(A.ui() === "it" ? "it-IT" : "en-GB", { day: "numeric", month: "long", year: "numeric" });
 
@@ -168,6 +170,31 @@ export async function pdf(d, A, p) {
       if (d.semplice.glossario?.length) { sotto(p("glossario")); d.semplice.glossario.forEach((g) => { scrivi(g.termine, { stile: "bold", dopo: 0.3 }); scrivi(g.spiegazione, { colore: GRIGIO, rientro: 5, dopo: 2 }); }); }
     }
     if (k === "domande") d.domande.domande.forEach((x, i) => { scrivi(`${i + 1}. ${x.d}`, { size: 11, stile: "bold", dopo: 0.8 }); scrivi(x.r, { colore: GRIGIO, rientro: 6, dopo: 3.5 }); });
+    if (k === "capitoli") d.capitoli.capitoli.forEach((c, i) => {
+      serve(16);
+      link(`${i + 1}  ·  ${tempo(c.sec)}`, linkYT(d.v.id, c.sec), { size: 10 });
+      scrivi(c.titolo, { size: 12.5, stile: "bold", dopo: 0.6 });
+      if (c.riassunto) scrivi(c.riassunto, { colore: GRIGIO, dopo: 4 }); else y += 3;
+    });
+    // flashcard: davanti e dietro una accanto all'altra, da ritagliare o da ripassare coprendo la colonna di destra
+    if (k === "carte") d.carte.carte.forEach((c) => {
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10.5);
+      const met = (larg() - 6) / 2, h = 10.5 * 0.3528 * 1.4;
+      const r1 = doc.splitTextToSize(pulisci(c.fronte), met - 8); doc.setFont("helvetica", "normal"); const r2 = doc.splitTextToSize(pulisci(c.retro), met - 8);
+      const alto = Math.max(r1.length, r2.length) * h + 9;
+      serve(alto + 3);
+      doc.setDrawColor(...[221, 227, 241]); doc.setLineWidth(0.4);
+      doc.setFillColor(244, 246, 251); doc.roundedRect(M, y, met, alto, 2.5, 2.5, "FD"); doc.roundedRect(M + met + 6, y, met, alto, 2.5, 2.5, "S");
+      doc.setFont("helvetica", "bold"); doc.setTextColor(...NOTTE); r1.forEach((r, j) => doc.text(r, M + 4, y + 6 + j * h + h * 0.4));
+      doc.setFont("helvetica", "normal"); doc.setTextColor(...GRIGIO); r2.forEach((r, j) => doc.text(r, M + met + 10, y + 6 + j * h + h * 0.4));
+      y += alto + 3.5;
+    });
+    if (k === "chieste") d.chieste.forEach((x) => {
+      scrivi(x.d, { size: 11, stile: "bold", dopo: 0.8 });
+      scrivi(`${x.nelVideo === false ? `[${p("nonNelVideo")}] ` : ""}${x.r}`, { rientro: 5, dopo: 0.6 });
+      (x.sec || []).forEach((sec) => link(`${p("vaiAlMinuto")} ${tempo(sec)}`, linkYT(d.v.id, sec), { size: 9, rientro: 5 }));
+      y += 3;
+    });
     if (k === "tempo") d.tempo.eventi.forEach((e) => {
       serve(14);
       doc.setDrawColor(...BLU); doc.setLineWidth(0.7); doc.line(M + 1.5, y, M + 1.5, y + 11);
@@ -205,7 +232,7 @@ export async function pdf(d, A, p) {
       for (const r of righe) { serve(h); doc.text(r, M + 16, y + h * 0.78); y += h; }
     }
   }
-  if (["tre", "semplice", "domande", "tempo", "contrario", "mappa"].some((k) => presente(d, k))) { y += 6; serve(10); scrivi(p("controlla"), { size: 8.5, stile: "italic", colore: GRIGIO }); }
+  if (["tre", "semplice", "domande", "tempo", "contrario", "mappa", "capitoli", "carte", "chieste"].some((k) => presente(d, k))) { y += 6; serve(10); scrivi(p("controlla"), { size: 8.5, stile: "italic", colore: GRIGIO }); }
 
   // piè di pagina: logo, titolo, numero (non sulla copertina)
   const n = doc.getNumberOfPages();
@@ -293,6 +320,24 @@ export async function word(d, A, p) {
       }
     }
     if (k === "domande") d.domande.domande.forEach((x, i) => { c.push(par([run(`${i + 1}. ${x.d}`, { bold: true, size: 23 })], { after: 60, keepNext: true })); c.push(par([run(x.r, { colore: GRIGIO_H })], { rientro: 400, after: 220 })); });
+    if (k === "capitoli") c.push(tabella(d.capitoli.capitoli.map((x, i) => [
+      cella([collegamento(`${i + 1} · ${tempo(x.sec)}`, linkYT(d.v.id, x.sec), { size: 20, after: 0 })], { w: 1600, bordi: { ...nessunBordo, bottom: { style: D.BorderStyle.SINGLE, size: 4, color: RIGA_H } } }),
+      cella([par([run(x.titolo, { bold: true, size: 24 })], { after: 40 }), ...(x.riassunto ? [par([run(x.riassunto, { colore: GRIGIO_H })], { after: 0 })] : [])], { w: 8038, bordi: { ...nessunBordo, bottom: { style: D.BorderStyle.SINGLE, size: 4, color: RIGA_H } } }),
+    ]), [1600, 8038]));
+    if (k === "carte") {
+      const bordo = { style: D.BorderStyle.SINGLE, size: 6, color: RIGA_H };
+      const tutto = { top: bordo, bottom: bordo, left: bordo, right: bordo };
+      c.push(tabella(d.carte.carte.map((x) => [
+        cella([par([run(x.fronte, { bold: true })], { after: 0 })], { w: 4719, fondo: "F4F6FB", bordi: tutto, margini: { top: 200, bottom: 200, left: 200, right: 200 } }),
+        cella([par([run(x.retro, { colore: GRIGIO_H })], { after: 0 })], { w: 4919, bordi: tutto, margini: { top: 200, bottom: 200, left: 200, right: 200 } }),
+      ]), [4719, 4919]));
+    }
+    if (k === "chieste") d.chieste.forEach((x) => {
+      c.push(par([run(x.d, { bold: true, size: 23 })], { after: 60, keepNext: true }));
+      c.push(par([...(x.nelVideo === false ? [run(`${p("nonNelVideo")} · `, { bold: true, colore: GRIGIO_H })] : []), run(x.r)], { rientro: 360, after: 60 }));
+      (x.sec || []).forEach((sec) => c.push(collegamento(`${p("vaiAlMinuto")} ${tempo(sec)}`, linkYT(d.v.id, sec), { rientro: 360, size: 18, after: 40 })));
+      c.push(par("", { after: 120 }));
+    });
     if (k === "tempo") d.tempo.eventi.forEach((e) => {
       c.push(par([run(e.quando, { bold: true, colore: BLU_H, size: 24 })], { after: 40, keepNext: true }));
       c.push(par([run(e.cosa)], { rientro: 300, after: 40 }));
@@ -319,7 +364,7 @@ export async function word(d, A, p) {
   // lo schema della mappa come testo (modificabile in Word), e la nota sull'AI
   const ultima = sezioni.at(-1);
   if (d.mappa?.testo && ultima) { ultima.children.push(sotto(`${p("mappa")} · ${p("schema")}`)); d.mappa.testo.split("\n").forEach((r) => ultima.children.push(new D.Paragraph({ bullet: { level: r.startsWith("  ") ? 1 : 0 }, spacing: { after: 40 }, children: [run(r.trim(), { size: 20 })] }))); }
-  if (ultima && ["tre", "semplice", "domande", "tempo", "contrario", "mappa"].some((k) => presente(d, k))) ultima.children.push(par([run(p("controlla"), { italics: true, colore: GRIGIO_H, size: 17 })], { before: 300 }));
+  if (ultima && ["tre", "semplice", "domande", "tempo", "contrario", "mappa", "capitoli", "carte", "chieste"].some((k) => presente(d, k))) ultima.children.push(par([run(p("controlla"), { italics: true, colore: GRIGIO_H, size: 17 })], { before: 300 }));
 
   const doc = new D.Document({
     creator: "Lavagna. by sbob", title: d.v.titolo, description: p("pdfTipo"),

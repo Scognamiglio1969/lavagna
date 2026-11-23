@@ -6,7 +6,7 @@ const LINGUE = ["it", "en", "es", "de", "fr"]; // lingue dei canali
 const PAESE = { it: "IT", es: "ES", de: "DE", fr: "FR" };
 import { cercaSuYouTube, infoVideo, paginaCondivisa } from "./youtube.js";
 import { leggiTrascrizione, salvaTrascrizione, segnaRichiesta, cercaParlato, infoFotogrammi, foglio, trascriviConGemini } from "./parlato.js";
-import { simili, semplice, contrario, traduci, mappa, tre, domande, lineaTempo, limite, MESE, ErroreGemini } from "./scoperta.js";
+import { simili, semplice, contrario, traduci, mappa, tre, domande, lineaTempo, capitoli, carte, chiedi, limite, MESE, ErroreGemini } from "./scoperta.js";
 import { lavoroPeriodico, salvaVideo, cerca, statoIndice, videoDiCategoria, videoDiCanale, togliCanale, spostaVideo, home } from "./indice.js";
 
 const CACHE_SECONDI = 1800; // ogni feed si rilegge al massimo ogni mezz'ora
@@ -582,17 +582,17 @@ async function conInfo(env, trovati) {
 }
 
 // SCHOOL · Banco: simili, semplice, contrario, traduci (vedi scoperta.js). Le risposte stanno in cache; l'AI ha un tetto al giorno per persona.
-const MAX_BANCO = { semplice: 120, contrario: 120, traduci: 600, mappa: 120, tre: 120, domande: 120, tempo: 120 }; // con la chiave di ciascuno: tetti larghi, solo contro gli abusi
+const MAX_BANCO = { semplice: 120, contrario: 120, traduci: 600, mappa: 120, tre: 120, domande: 120, tempo: 120, capitoli: 120, carte: 120, chiedi: 300 }; // con la chiave di ciascuno: tetti larghi, solo contro gli abusi
 async function banco(req, env, pathname, ctx) {
   // quali strumenti sono già pronti per questo video (risposte in cache): servono le spunte sulle icone del Desk
   const pr = pathname.match(/^\/api\/banco\/pronti\/([\w-]{11})$/);
   if (pr) {
     const ui = LINGUE.includes(new URL(req.url).searchParams.get("ui")) ? new URL(req.url).searchParams.get("ui") : "en";
-    const tutti = ["semplice", "tre", "mappa", "domande", "tempo", "contrario", "simili"];
+    const tutti = ["semplice", "tre", "mappa", "domande", "tempo", "contrario", "simili", "capitoli", "carte"];
     const pronti = (await Promise.all(tutti.map(async (c) => ((await caches.default.match(new Request(`https://cache.lavagna/banco5/${c}/${pr[1]}/${c === "simili" ? "" : ui}`))) ? c : null)))).filter(Boolean);
     return json({ pronti }, 0);
   }
-  const u = new URL(req.url), m = pathname.match(/^\/api\/banco\/(simili|semplice|contrario|traduci|mappa|tre|domande|tempo)\/([\w-]{11})$/);
+  const u = new URL(req.url), m = pathname.match(/^\/api\/banco\/(simili|semplice|contrario|traduci|mappa|tre|domande|tempo|capitoli|carte|chiedi)\/([\w-]{11})$/);
   if (!m) return json({ errore: "?" }, 0, 404);
   const [, cosa, id] = m;
   const ui = LINGUE.includes(u.searchParams.get("ui")) ? u.searchParams.get("ui") : "en";
@@ -602,7 +602,10 @@ async function banco(req, env, pathname, ctx) {
   if (!chi) return json({ errore: "accesso" }, 0, 401);
   // la chiave: quella salvata nella Lavagna; se arriva ancora dal browser (prima di questa versione) si controlla e si salva
   let chiaveGemini = (req.headers.get("x-gemini-key") || "").trim();
-  const chiave = new Request(`https://cache.lavagna/banco5/${cosa}/${id}/${cosa === "traduci" ? `${verso}/${k}` : cosa === "simili" ? "" : ui}`);
+  const domanda = cosa === "chiedi" ? String((await req.clone().json().catch(() => ({}))).domanda || "").replace(/\s+/g, " ").trim().slice(0, 300) : "";
+  if (cosa === "chiedi" && domanda.length < 3) return json({ errore: "domanda" }, 0, 400);
+  const firma = domanda ? [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(domanda.toLowerCase())))].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("") : "";
+  const chiave = new Request(`https://cache.lavagna/banco5/${cosa}/${id}/${cosa === "traduci" ? `${verso}/${k}` : cosa === "simili" ? "" : ui}${firma ? `/${firma}` : ""}`);
   const pronta = await caches.default.match(chiave);
   if (pronta) return pronta;
   if (cosa !== "simili") {
@@ -627,6 +630,9 @@ async function banco(req, env, pathname, ctx) {
     if (cosa === "tre") d = await tre(env, id, ui, chiaveGemini);
     if (cosa === "domande") d = await domande(env, id, ui, chiaveGemini);
     if (cosa === "tempo") d = await lineaTempo(env, id, ui, chiaveGemini);
+    if (cosa === "capitoli") d = await capitoli(env, id, ui, chiaveGemini);
+    if (cosa === "carte") d = await carte(env, id, ui, chiaveGemini);
+    if (cosa === "chiedi") d = await chiedi(env, id, ui, chiaveGemini, domanda);
     if (!d.errore) await caches.default.put(chiave, json(d, cosa === "simili" ? 3600 : MESE)).catch(() => {});
     return d;
   })();

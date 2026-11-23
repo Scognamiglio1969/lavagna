@@ -20,6 +20,10 @@ const P = {
     rispostaGoogle: "Google answered:", lento: "Gemini is slow right now. I keep going: you can close this, the answer will be ready next time you open it.",
     esporta: "Export", esportaSotto: "Choose what to put in the document. What is not ready yet gets made now (it can take half a minute).", preparo: "Preparing…",
     esportato: "Done: the file is in your downloads.", erroreEsporta: "The export did not work: try again.", pdfTipo: "Study sheet", creatoIl: "Created on",
+    chiedi: "Ask the video", capitoli: "Chapters", carte: "Flashcards", chieste: "Your questions to the video",
+    chiediPh: "Ask anything about this video…", chiediB: "Ask", chiediNota: "Gemini answers only with what the video says, and tells you the minute. If the video does not talk about it, it says so.",
+    nonNelVideo: "Not in this video", pensoRisposta: "Looking for the answer in the video…", errDomanda: "Write a slightly longer question.",
+    gira: "Turn over", mescola: "Shuffle", prec: "Previous", succ: "Next", fronte: "Front", retro: "Back", scaricaAnki: "Download for Anki (.txt)", toccaGira: "Tap the card to turn it over",
     tre: "3 key points", mappa: "Mind map", domande: "Review questions", tempo: "Timeline", scaricaMappa: "Download the map (SVG)", ingrandisci: "Tap to enlarge, tap again to close", mostraRisposta: "Show the answer",
     nessunaData: "This video does not talk about dates: no timeline here.", vaiAlMinuto: "Play from here",
     banco: "Desk", tr: "Transcript", ap: "Notes", semplice: "Explain it simply", simili: "Others who talk about it", chi: "Who is speaking", contrario: "The other side",
@@ -47,6 +51,10 @@ const P = {
     rispostaGoogle: "Risposta di Google:", lento: "Gemini in questo momento è lento. Vado avanti: puoi anche chiudere, la risposta sarà pronta la prossima volta che lo apri.",
     esporta: "Esporta", esportaSotto: "Scegli cosa mettere nel documento. Quello che non è ancora pronto si prepara adesso (può volerci mezzo minuto).", preparo: "Preparo…",
     esportato: "Fatto: il file è nei tuoi download.", erroreEsporta: "L'export non è riuscito: riprova.", pdfTipo: "Scheda di studio", creatoIl: "Creata il",
+    chiedi: "Chiedi al video", capitoli: "Capitoli", carte: "Flashcard", chieste: "Le tue domande al video",
+    chiediPh: "Chiedi qualcosa su questo video…", chiediB: "Chiedi", chiediNota: "Gemini risponde solo con quello che dice il video, e ti dice il minuto. Se il video non ne parla, te lo dice.",
+    nonNelVideo: "Non è nel video", pensoRisposta: "Cerco la risposta nel video…", errDomanda: "Scrivi una domanda un po' più lunga.",
+    gira: "Gira", mescola: "Mescola", prec: "Precedente", succ: "Successiva", fronte: "Davanti", retro: "Dietro", scaricaAnki: "Scarica per Anki (.txt)", toccaGira: "Tocca la carta per girarla",
     tre: "Tre punti", mappa: "Mappa mentale", domande: "Domande per ripassare", tempo: "Linea del tempo", scaricaMappa: "Scarica la mappa (SVG)", ingrandisci: "Tocca per ingrandire, tocca di nuovo per chiudere", mostraRisposta: "Mostra la risposta",
     nessunaData: "Questo video non parla di date: qui non c'è una linea del tempo.", vaiAlMinuto: "Guarda da qui",
     banco: "Banco", tr: "Trascrizione", ap: "Appunti", semplice: "Spiegamelo semplice", simili: "Altri che ne parlano", chi: "Chi parla", contrario: "Il contrario",
@@ -95,10 +103,10 @@ export function banco(dove, v, A) {
   const p = (k, ...a) => { const x = P[A.ui()]?.[k] ?? P.en[k]; return typeof x === "function" ? x(...a) : x; };
   const yt = /^[\w-]{11}$/.test(v.id);
   const ICONE = [
-    yt && ["tr", "☰"], yt && ["ap", "✎"], yt && ["semplice", "✧"], yt && ["tre", "③"], yt && ["mappa", "✺"], yt && ["domande", "?"], yt && ["tempo", "⟿"],
+    yt && ["tr", "☰"], yt && ["ap", "✎"], yt && ["chiedi", "¿"], yt && ["semplice", "✧"], yt && ["tre", "③"], yt && ["mappa", "✺"], yt && ["capitoli", "§"], yt && ["domande", "?"], yt && ["carte", "▭"], yt && ["tempo", "⟿"],
     yt && ["simili", "⇄"], yt && ["dibattiti", "attualita", "filosofia"].includes(v.cat) && ["contrario", "⚖"], yt && ["esporta", "⤓"], ["studio", "◐"],
   ].filter(Boolean);
-  const AI = ["semplice", "tre", "mappa", "domande", "tempo", "contrario"];
+  const AI = ["semplice", "tre", "mappa", "domande", "tempo", "contrario", "capitoli", "carte", "chiedi"];
   let aperto = null, chiudiPannello = () => {};
   dove.innerHTML = `<section class="banco" aria-label="SCHOOL · ${p("banco")}">
     <h2 class="banco-t"><b>SCHOOL</b> · ${p("banco")}</h2>
@@ -114,11 +122,11 @@ export function banco(dove, v, A) {
     if (aperto === k && !forza) { chiudiPannello(); chiudiPannello = () => {}; aperto = null; pannello.hidden = true; pannello.innerHTML = ""; segna(); return; }
     chiudiPannello(); chiudiPannello = () => {};
     aperto = k; pannello.hidden = false; segna();
-    pannello.innerHTML = `<p class="sotto bp-attesa">${p(AI.includes(k) ? "attesaAI" : "attesa")}</p>`;
+    pannello.innerHTML = k === "chiedi" ? "" : `<p class="sotto bp-attesa">${p(AI.includes(k) ? "attesaAI" : "attesa")}</p>`;
     // se Gemini è lento lo si dice, invece di far girare la rotellina all'infinito
     if (AI.includes(k)) setTimeout(() => { const w = pannello.querySelector(".bp-attesa"); if (aperto === k && w && !w.dataset.lento) { w.dataset.lento = "1"; w.insertAdjacentHTML("afterend", `<p class="bp-nota">${p("lento")}</p>`); } }, 45000);
     if (k === "tr" || k === "ap") { A.memo.set("schedaStudio", k); const x = A.pannelloVideo(pannello, { id: v.id, titolo: v.titolo, nomeCanale: v.nomeCanale, durata: v.durata }, A.lettore); x.video?.(v); chiudiPannello = () => x.chiudi(); return; }
-    return ({ semplice, tre, mappa, domande, tempo: lineaTempo, simili, contrario, esporta })[k]?.();
+    return ({ semplice, tre, mappa, domande, tempo: lineaTempo, simili, contrario, esporta, capitoli, carte, chiedi: chiediVideo })[k]?.();
   };
   // la porta di SCHOOL: prima la propria Lavagna (passkey), poi la propria chiave Gemini per gli strumenti con l'AI
   const CON_AI = [...AI, "esporta"];
@@ -179,6 +187,7 @@ export function banco(dove, v, A) {
     fetch(`/api/banco/pronti/${v.id}?ui=${A.ui()}`).then((r) => (r.ok ? r.json() : { pronti: [] })).then((x) => (x.pronti || []).forEach(spunta)).catch(() => {});
     A.trascrizione(v.id).then((t) => { if (t?.righe?.length) spunta("tr"); }).catch(() => {});
     A.appuntiDi?.(v.id).then((l) => { if (l?.length) spunta("ap"); }).catch(() => {});
+    if (A.memo.get(`chieste:${v.id}`, []).length) spunta("chiedi");
   }
   dove.querySelector(".banco-riga").onclick = (e) => {
     const b = e.target.closest(".bi"); if (!b) return;
@@ -228,6 +237,73 @@ export function banco(dove, v, A) {
       document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
     };
   });
+  // § capitoli: l'indice del video, un tocco e il video riparte da lì
+  const capitoli = () => daAI("capitoli", (d) => {
+    pannello.innerHTML = `<ol class="bp-capitoli">${d.capitoli.map((c) => `<li><button class="bp-min" data-sec="${c.sec}">▶ ${tempo(c.sec)}</button><div><strong>${esc(c.titolo)}</strong>${c.riassunto ? `<p>${esc(c.riassunto)}</p>` : ""}</div></li>`).join("")}</ol>${nota()}`;
+    pannello.querySelector(".bp-capitoli").onclick = (e) => { const b = e.target.closest("[data-sec]"); if (b) vai(Number(b.dataset.sec)); };
+  });
+
+  // ▭ flashcard: si girano e si scorrono come vuoi (niente giuste/sbagliate); si scaricano per Anki
+  const carte = () => daAI("carte", (d) => {
+    let lista = [...d.carte], i = 0, girata = false;
+    const disegna = () => {
+      const c = lista[i];
+      pannello.innerHTML = `<div class="bp-carte"><button class="bp-carta${girata ? " girata" : ""}" aria-label="${p("gira")}">
+          <span class="bp-faccia davanti"><small>${p("fronte")}</small>${esc(c.fronte)}</span><span class="bp-faccia dietro"><small>${p("retro")}</small>${esc(c.retro)}</span></button>
+        <div class="bp-carte-comandi"><button class="bott" data-c="prec" ${i === 0 ? "disabled" : ""}>← ${p("prec")}</button><span class="bp-conta">${i + 1} / ${lista.length}</span>
+          <button class="bott on" data-c="gira">↻ ${p("gira")}</button><button class="bott" data-c="succ" ${i === lista.length - 1 ? "disabled" : ""}>${p("succ")} →</button></div>
+        <p class="bp-carte-altro"><button class="link" data-c="mescola">⤮ ${p("mescola")}</button> · <button class="link" data-c="anki">⤓ ${p("scaricaAnki")}</button></p></div>${nota()}`;
+      pannello.querySelector(".bp-carta").onclick = () => { girata = !girata; pannello.querySelector(".bp-carta").classList.toggle("girata", girata); };
+      pannello.querySelector(".bp-carte").addEventListener("click", (e) => {
+        const c2 = e.target.closest("[data-c]")?.dataset.c; if (!c2) return;
+        if (c2 === "gira") { girata = !girata; pannello.querySelector(".bp-carta").classList.toggle("girata", girata); return; }
+        if (c2 === "prec" && i > 0) { i--; girata = false; }
+        if (c2 === "succ" && i < lista.length - 1) { i++; girata = false; }
+        if (c2 === "mescola") { lista = lista.map((x) => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map((x) => x[1]); i = 0; girata = false; }
+        if (c2 === "anki") {
+          const testo = lista.map((x) => `${x.fronte.replace(/[\t\n]/g, " ")}\t${x.retro.replace(/[\t\n]/g, " ")}`).join("\n");
+          const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([testo], { type: "text/plain;charset=utf-8" }));
+          a.download = `flashcard-${(v.titolo || v.id).normalize("NFD").replace(/[^\w]+/g, "-").slice(0, 40).toLowerCase()}.txt`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+          return;
+        }
+        disegna();
+      });
+    };
+    disegna();
+  });
+
+  // ¿ chiedi al video: le domande restano in questo browser, per questo video; le risposte vengono solo dal video
+  function chiediVideo() {
+    const chiaveStoria = `chieste:${v.id}`;
+    const storia = () => A.memo.get(chiaveStoria, []);
+    pannello.innerHTML = `<form class="bp-chiedi"><input maxlength="300" placeholder="${p("chiediPh")}" aria-label="${p("chiediPh")}" required><button class="bott on">${p("chiediB")}</button></form>
+      <p class="bp-nota">${p("chiediNota")}</p><div class="bp-qa"></div>`;
+    const lista = pannello.querySelector(".bp-qa"), f = pannello.querySelector(".bp-chiedi");
+    const qa = (x) => `<div class="bp-qa-voce${x.nelVideo === false ? " fuori" : ""}"><p class="bp-q">${esc(x.d)}</p>${x.attesa ? `<p class="sotto bp-attesa">${p("pensoRisposta")}</p>` : `<p class="bp-r">${x.nelVideo === false ? `<span class="bp-etichetta">${p("nonNelVideo")}</span> ` : ""}${esc(x.r)}</p>
+      ${x.sec?.length ? `<p class="bp-min-riga">${x.sec.map((sec) => `<button class="bp-min" data-sec="${sec}">▶ ${tempo(sec)}</button>`).join("")}</p>` : ""}`}</div>`;
+    const disegna = (attesa) => { lista.innerHTML = [attesa, ...storia()].filter(Boolean).map(qa).join(""); };
+    disegna();
+    lista.onclick = (e) => { const b = e.target.closest("[data-sec]"); if (b) vai(Number(b.dataset.sec)); };
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const domanda = f.querySelector("input").value.trim();
+      if (domanda.length < 3) { A.avvisa(p("errDomanda")); return; }
+      f.querySelector("button").disabled = true; disegna({ d: domanda, attesa: true });
+      const r = await fetch(`/api/banco/chiedi/${v.id}?ui=${A.ui()}`, { method: "POST", headers: { "content-type": "application/json", "x-gemini-key": chiaveQui() }, body: JSON.stringify({ domanda }) }).catch(() => null);
+      const d = await r?.json().catch(() => ({})) || {};
+      if (aperto !== "chiedi") return;
+      f.querySelector("button").disabled = false;
+      if (r?.status === 401) return mostraEntra("chiedi");
+      if (d.errore === "chiave" || d.errore === "nonValida") return mostraChiave("chiedi", d.errore === "nonValida" ? p("errNonValida") : "");
+      if (d.errore === "trascrizione") { const t = await A.trascrizione(v.id); return A.chiediTrascrizione(pannello, v.id, t.fonte, () => { if (aperto === "chiedi") apri("chiedi", true); }); }
+      if (!r?.ok) { disegna(); lista.insertAdjacentHTML("afterbegin", `<p class="sotto">${d.errore === "quota" ? p("errQuota") : p("erroreAI")}${d.dettaglio ? ` · ${p("rispostaGoogle")} ${esc(d.dettaglio)}` : ""}</p>`); return; }
+      A.memo.set(chiaveStoria, [{ d: domanda, r: d.risposta, nelVideo: d.nelVideo, sec: d.sec, quando: Date.now() }, ...storia()].slice(0, 30));
+      f.querySelector("input").value = ""; spunta("chiedi"); disegna();
+    };
+    if (storia().length) spunta("chiedi");
+    f.querySelector("input").focus();
+  }
+
   // ? domande per ripassare: la risposta si apre, niente punteggi
   const domande = () => daAI("domande", (d) => {
     pannello.innerHTML = `<div class="st-domande bp-domande">${d.domande.map((x) => `<details><summary>${esc(x.d)}</summary><p>${esc(x.r)}</p></details>`).join("")}</div>${nota()}`;

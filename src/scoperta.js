@@ -189,6 +189,58 @@ If the video has no dates at all, answer {"eventi": []}. Write "cosa" in ${lingu
   return { eventi: (d.eventi || []).map((e) => ({ quando: String(e.quando || "").trim(), cosa: String(e.cosa || "").trim(), sec: Math.max(0, Number(e.sec) || 0) })).filter((e) => e.quando && e.cosa).slice(0, 14) };
 }
 
+// il parlato con i secondi ogni tre righe ([12] …), accorciato in modo uniforme se il video è molto lungo
+function conSecondi(righe, max = 45000) {
+  const pezzi = [];
+  for (let i = 0; i < righe.length; i += 3) pezzi.push(`[${Math.floor(righe[i][0])}] ${righe.slice(i, i + 3).map(([, x]) => x).join(" ")}`);
+  let testo = pezzi.join("\n");
+  if (testo.length > max) { const k = Math.ceil(testo.length / max); testo = pezzi.filter((_, i) => i % k === 0).join("\n"); }
+  return testo;
+}
+
+// ——— Capitoli: l'indice del video, con il secondo da cui guardare ogni parte ———
+export async function capitoli(env, id, ui, chiave) {
+  const t = await leggiTrascrizione(env, id).catch(() => null);
+  if (!t?.righe?.length) return { errore: "trascrizione" };
+  const lingua = LINGUE[ui] || "English", fine = t.righe.at(-1)[0];
+  const sistema = `Answer ONLY in ${lingua}, with a JSON object and nothing else. Divide this educational video into its chapters, in order (4-10, following how the topic changes):
+{"capitoli": [{"sec": start in seconds taken from the [N] markers, "titolo": "3-7 words", "riassunto": "what this part explains, one short sentence"}]}
+The first chapter starts at 0. Write titolo and riassunto in ${lingua}.`;
+  const d = await ai(env, sistema, `Transcript with [seconds]:\n${conSecondi(t.righe)}`, 1200, chiave);
+  const lista = (d.capitoli || []).map((c) => ({ sec: Math.max(0, Math.min(fine, Math.round(Number(c.sec) || 0))), titolo: String(c.titolo || "").trim(), riassunto: String(c.riassunto || "").trim() }))
+    .filter((c) => c.titolo).sort((a, b) => a.sec - b.sec).slice(0, 14);
+  if (!lista.length) throw new ErroreGemini("ai", "nessun capitolo");
+  lista[0].sec = 0;
+  return { capitoli: lista };
+}
+
+// ——— Flashcard: davanti una domanda o una parola, dietro la risposta (si girano, niente punteggi) ———
+export async function carte(env, id, ui, chiave) {
+  const t = await leggiTrascrizione(env, id).catch(() => null);
+  if (!t?.righe?.length) return { errore: "trascrizione" };
+  const lingua = LINGUE[ui] || "English";
+  const sistema = `Answer ONLY in ${lingua}, with a JSON object and nothing else. Make 10-16 flashcards to study this educational video:
+{"carte": [{"fronte": "a short question, or a key term to define", "retro": "the answer, 1-2 clear sentences"}]}
+Cover the whole video, from basic facts to the main ideas. Only what the video says. Write everything in ${lingua}.`;
+  const d = await ai(env, sistema, `Transcript:\n${campione(t.righe)}`, 1600, chiave);
+  const lista = (d.carte || []).map((c) => ({ fronte: String(c.fronte || "").trim(), retro: String(c.retro || "").trim() })).filter((c) => c.fronte && c.retro).slice(0, 20);
+  if (!lista.length) throw new ErroreGemini("ai", "nessuna carta");
+  return { carte: lista };
+}
+
+// ——— Chiedi al video: risponde solo con quello che dice il video, e dice in che minuto ———
+export async function chiedi(env, id, ui, chiave, domanda) {
+  const t = await leggiTrascrizione(env, id).catch(() => null);
+  if (!t?.righe?.length) return { errore: "trascrizione" };
+  const lingua = LINGUE[ui] || "English";
+  const sistema = `You answer a student's question about an educational video, using ONLY what is said in its transcript ([N] = seconds from the start).
+Answer ONLY in ${lingua}, with a JSON object and nothing else:
+{"risposta": "a clear answer in 2-5 sentences", "nelVideo": true or false, "sec": [the seconds where the video talks about it, from the [N] markers, at most 3]}
+If the video does not talk about it, set "nelVideo" to false, say so in one sentence in "risposta" and leave "sec" empty. Do not invent anything.`;
+  const d = await ai(env, sistema, `Transcript with [seconds]:\n${conSecondi(t.righe)}\n\nStudent's question: ${domanda}`, 700, chiave);
+  return { risposta: String(d.risposta || "").trim(), nelVideo: d.nelVideo !== false, sec: (Array.isArray(d.sec) ? d.sec : []).map((x) => Math.max(0, Math.round(Number(x) || 0))).filter((x, i, a) => a.indexOf(x) === i).slice(0, 3) };
+}
+
 // ——— 8 · Il contrario ———
 export async function contrario(env, id, ui, chiave) {
   const v = await infoVideo(env, id).catch(() => null);
