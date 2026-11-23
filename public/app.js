@@ -1,6 +1,6 @@
 // Lavagna — una pagina, rotte con l'hash: #/, #/c/scienza, #/ch/UC…, #/v/ID, #/cerca/parole, #/salvati, #/tv, #/canali
 // I video vengono da più fonti (campo `fonte`): YouTube (nessun campo), "ia" Internet Archive, "vimeo", "pt" PeerTube.
-import { installa, pannelloVideo, sezioneParlato, vistaScuola, vistaLezione, vistaLezionePubblica, vistaPresenta, trascrizione, chiediTrascrizione, svgMappa } from "./studio.js";
+import { installa, pannelloVideo, sezioneParlato, vistaScuola, vistaLezione, vistaLezionePubblica, vistaPresenta, trascrizione, chiediTrascrizione, svgMappa, appuntiDi, fotogramma } from "./studio.js";
 import { banco, livello, tappe as tappeDi, LIVELLI } from "./banco.js";
 const $ = (s) => document.querySelector(s);
 const vista = $("#vista");
@@ -764,7 +764,7 @@ async function vistaVideo(id) {
   // SCHOOL · Banco: tutte le funzioni per studiare, in una riga sotto il video
   bancoV = banco($("#banco"), v, {
     ui: () => ui, memo, avvisa, apriVideo, pannelloVideo, trascrizione, chiediTrascrizione, lettore: () => lettore, schermo: () => $("#schermo"),
-    svgMappa, categoria: (c) => categorie.find((x) => x.id === c), nomeCat,
+    svgMappa, appuntiDi, fotogramma, caricaScript, categoria: (c) => categorie.find((x) => x.id === c), nomeCat,
   });
   // cronologia: in cima il più recente, senza doppioni, al massimo 500
   { const { descrizione, ...corto } = v; cronologia = [{ ...corto, visto: Date.now() }, ...cronologia.filter((x) => x.id !== v.id)].slice(0, 500); memo.set("cronologia", cronologia); }

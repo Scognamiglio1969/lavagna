@@ -8,6 +8,8 @@ const tempo = (x) => { x = Math.max(0, Math.floor(Number(x) || 0)); const h = Ma
 
 const P = {
   en: {
+    esporta: "Export", esportaSotto: "Choose what to put in the document. What is not ready yet gets made now (it can take half a minute).", preparo: "Preparing…",
+    esportato: "Done: the file is in your downloads.", erroreEsporta: "The export did not work: try again.", pdfTipo: "Study sheet", creatoIl: "Created on",
     tre: "3 key points", mappa: "Mind map", domande: "Review questions", tempo: "Timeline", scaricaMappa: "Download the map (SVG)", ingrandisci: "Tap to enlarge, tap again to close", mostraRisposta: "Show the answer",
     nessunaData: "This video does not talk about dates: no timeline here.", vaiAlMinuto: "Play from here",
     banco: "Desk", tr: "Transcript", ap: "Notes", semplice: "Explain it simply", simili: "Others who talk about it", chi: "Who is speaking", contrario: "The other side",
@@ -23,6 +25,8 @@ const P = {
     percorsoVai: (n) => `Open the path of «${n}» →`,
   },
   it: {
+    esporta: "Esporta", esportaSotto: "Scegli cosa mettere nel documento. Quello che non è ancora pronto si prepara adesso (può volerci mezzo minuto).", preparo: "Preparo…",
+    esportato: "Fatto: il file è nei tuoi download.", erroreEsporta: "L'export non è riuscito: riprova.", pdfTipo: "Scheda di studio", creatoIl: "Creata il",
     tre: "Tre punti", mappa: "Mappa mentale", domande: "Domande per ripassare", tempo: "Linea del tempo", scaricaMappa: "Scarica la mappa (SVG)", ingrandisci: "Tocca per ingrandire, tocca di nuovo per chiudere", mostraRisposta: "Mostra la risposta",
     nessunaData: "Questo video non parla di date: qui non c'è una linea del tempo.", vaiAlMinuto: "Guarda da qui",
     banco: "Banco", tr: "Trascrizione", ap: "Appunti", semplice: "Spiegamelo semplice", simili: "Altri che ne parlano", chi: "Chi parla", contrario: "Il contrario",
@@ -72,7 +76,7 @@ export function banco(dove, v, A) {
   const yt = /^[\w-]{11}$/.test(v.id);
   const ICONE = [
     yt && ["tr", "☰"], yt && ["ap", "✎"], yt && ["semplice", "✧"], yt && ["tre", "③"], yt && ["mappa", "✺"], yt && ["domande", "?"], yt && ["tempo", "⟿"],
-    yt && ["simili", "⇄"], yt && ["dibattiti", "attualita", "filosofia"].includes(v.cat) && ["contrario", "⚖"], ["studio", "◐"],
+    yt && ["simili", "⇄"], yt && ["dibattiti", "attualita", "filosofia"].includes(v.cat) && ["contrario", "⚖"], yt && ["esporta", "⤓"], ["studio", "◐"],
   ].filter(Boolean);
   const AI = ["semplice", "tre", "mappa", "domande", "tempo", "contrario"];
   let aperto = null, chiudiPannello = () => {};
@@ -92,7 +96,7 @@ export function banco(dove, v, A) {
     aperto = k; pannello.hidden = false; segna();
     pannello.innerHTML = `<p class="sotto bp-attesa">${p(AI.includes(k) ? "attesaAI" : "attesa")}</p>`;
     if (k === "tr" || k === "ap") { A.memo.set("schedaStudio", k); const x = A.pannelloVideo(pannello, { id: v.id, titolo: v.titolo, nomeCanale: v.nomeCanale, durata: v.durata }, A.lettore); x.video?.(v); chiudiPannello = () => x.chiudi(); return; }
-    return ({ semplice, tre, mappa, domande, tempo: lineaTempo, simili, contrario })[k]?.();
+    return ({ semplice, tre, mappa, domande, tempo: lineaTempo, simili, contrario, esporta })[k]?.();
   };
   dove.querySelector(".banco-riga").onclick = (e) => {
     const b = e.target.closest(".bi"); if (!b) return;
@@ -173,6 +177,31 @@ export function banco(dove, v, A) {
         <span class="bp-testo"><strong>${esc(x.titolo)}</strong><small>${esc(x.nomeCanale || "")}</small></span></a>`).join("")}</div>`
       : `<p class="sotto">${p("nessunaAltra")} ${d.ricerche?.[0] ? `<a class="link" href="#/cerca/${encodeURIComponent(d.ricerche[0])}">${p("cercaAltrove")}</a>` : ""}</p>`}${nota()}`;
   });
+
+  // ⤓ esporta: un vero PDF o un vero Word con tutto quello che il Desk sa fare per questo video, più gli appunti
+  async function esporta() {
+    const E = await import("./esporta.js");
+    if (aperto !== "esporta") return;
+    const voci = E.PARTI.filter((k) => k !== "contrario" || ICONE.some(([x]) => x === "contrario"));
+    pannello.innerHTML = `<p>${p("esportaSotto")}</p>
+      <div class="bp-scelte">${voci.map((k) => `<label><input type="checkbox" value="${k}" ${k !== "trascrizione" ? "checked" : ""}> ${p(k)}</label>`).join("")}</div>
+      <div class="bp-esporta"><button class="bott on grande" data-f="pdf">⤓ PDF</button><button class="bott grande" data-f="docx">⤓ Word (.docx)</button></div>
+      <p class="msg" id="bpEsMsg" role="status"></p>`;
+    pannello.querySelector(".bp-esporta").onclick = async (e) => {
+      const f = e.target.closest("[data-f]")?.dataset.f; if (!f) return;
+      const scelte = [...pannello.querySelectorAll(".bp-scelte input:checked")].map((x) => x.value);
+      const msg = pannello.querySelector("#bpEsMsg"), bottoni = pannello.querySelectorAll(".bp-esporta button");
+      bottoni.forEach((b) => (b.disabled = true));
+      const fatti = [];
+      msg.innerHTML = `<span class="bp-attesa">${p("preparo")}</span>`;
+      try {
+        const d = await E.raccogli(v, A, scelte, (k) => { fatti.push(p(k)); if (msg.isConnected) msg.innerHTML = `<span class="bp-attesa">${p("preparo")}</span> ✓ ${fatti.join(" · ")}`; });
+        await (f === "pdf" ? E.pdf(d, A, p) : E.word(d, A, p));
+        if (msg.isConnected) msg.textContent = p("esportato");
+      } catch (err) { console.error(err); if (msg.isConnected) msg.textContent = p("erroreEsporta"); }
+      finally { bottoni.forEach((b) => (b.disabled = false)); }
+    };
+  }
 
   // ◐ modalità studio: schermo intero, scuro, solo il video e SCHOOL · Desk aperto
   const fuoriDaSchermoIntero = () => { if (!document.fullscreenElement && inStudio()) studio(false); };

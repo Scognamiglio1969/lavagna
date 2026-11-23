@@ -1,6 +1,6 @@
 # Lavagna.
 
-*by Scognamiglio*
+*by sbob*
 
 ## YouTube, curated. No ads on the page.
 

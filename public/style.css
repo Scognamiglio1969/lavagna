@@ -1,7 +1,8 @@
 :root {
-  --fondo: #f3efe4; --carta: #fbf9f3; --inchiostro: #1d2420; --tenue: #66706a;
-  --lavagna: #253b32; --gesso: #f3efe4; --accento: #c4572e; --linea: #ddd6c6;
-  --ombra: 0 1px 2px rgb(0 0 0 / .06), 0 6px 20px rgb(0 0 0 / .06);
+  /* in chiaro: i colori di SBOB (blu notte e blu del logo) */
+  --fondo: #f4f6fb; --carta: #ffffff; --inchiostro: #1b2140; --tenue: #5c6585;
+  --lavagna: #1b2140; --gesso: #f4f6fb; --accento: #4c6ef5; --linea: #dde3f1;
+  --ombra: 0 1px 2px rgb(27 33 64 / .06), 0 6px 20px rgb(27 33 64 / .07);
 }
 /* tema: segue il sistema (automatico) oppure la scelta fatta da ⚙ (data-theme sull'html) */
 @media (prefers-color-scheme: dark) {
@@ -859,3 +860,14 @@ body.modo-studio .bp-mappa svg rect[fill="#fbf9f3"] { fill: #f3efe4; }
 .bp-mappa { cursor: zoom-in; }
 .bp-mappa.grande { position: fixed; inset: 0; z-index: 60; margin: 0; border-radius: 0; padding: 3vh 3vw; background: #0f1412; display: grid; place-items: center; cursor: zoom-out; }
 .bp-mappa.grande svg { width: 100%; height: 100%; max-height: 94vh; }
+
+/* firma «by sbob»: la o è il cerchio blu che sorride, come nel logo SBOB */
+.marchio .nome { color: var(--gesso); text-decoration: none; }
+.marchio .firma { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; opacity: .9; }
+.marchio .firma:hover { opacity: 1; }
+.sbob, .marchio .firma .sbob { display: inline-flex; align-items: center; font: 900 13px/1 Inter, system-ui, sans-serif; letter-spacing: -.02em; text-transform: lowercase; color: var(--gesso); }
+.sbob i { display: inline-block; width: .82em; height: .82em; margin: 0 .04em; border-radius: 50%; background: #4c6ef5; position: relative; top: .02em; }
+.sbob i::after { content: ""; position: absolute; left: 26%; right: 26%; top: 44%; height: 26%; border: .12em solid #fff; border-top: 0; border-radius: 0 0 1em 1em; }
+.bp-scelte { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 14px; }
+.bp-scelte label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.bp-esporta { display: flex; flex-wrap: wrap; gap: 10px; }

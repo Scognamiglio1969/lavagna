@@ -192,6 +192,8 @@ const Q = {
   async lezioni() { return (await this.tutto()).filter((x) => x.tipo === "lezione"); },
 };
 
+export const appuntiDi = (id) => Q.appunti(id); // per l'export del Banco
+
 // ——— esportare ———
 function scarica(nome, testo, tipo) {
   const a = document.createElement("a");
