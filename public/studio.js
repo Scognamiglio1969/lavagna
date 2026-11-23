@@ -6,6 +6,7 @@
 // Gli appunti e le lezioni stanno nel browser; con la propria Lavagna (passkey) stanno sul server e si ritrovano ovunque.
 
 let C; // gli attrezzi di app.js (installa)
+const SCUOLA = false; // la sezione Scuola (lezioni) per ora è nascosta: le pagine restano, i pulsanti no
 import { passoMonta as montatore } from "./montaggio.js";
 export function installa(ctx) { C = ctx; }
 const $ = (s, d = document) => d.querySelector(s);
@@ -378,7 +379,7 @@ export function pannelloVideo(dove, v, lettore) {
       el.innerHTML = `<button class="ap-foto" aria-label="${s("vai")} ${tempo(p.da)}"><span class="ap-tc">${tempo(p.da)}${p.a > p.da ? `–${tempo(p.a)}` : ""}</span></button>
         <div class="ap-testo">${p.testo ? `<p>${esc(p.testo)}</p>` : ""}${p.estratto ? `<blockquote>${esc(p.estratto)}</blockquote>` : ""}
         <div class="ap-azioni"><button class="link" data-a="vai">▶ ${s("vai")}</button><button class="link" data-a="mod">${s("modifica")}</button>
-        <button class="link" data-a="lez">${s("allaLezione")}</button><button class="link" data-a="via">${s("togli")}</button></div><div class="ap-dove"></div></div>`;
+        ${SCUOLA ? `<button class="link" data-a="lez">${s("allaLezione")}</button>` : ""}<button class="link" data-a="via">${s("togli")}</button></div><div class="ap-dove"></div></div>`;
       box.appendChild(el);
       fotogramma(p.video, p.da, v.durata).then((f) => { if (f) el.querySelector(".ap-foto").style.backgroundImage = `url(${f.src})`; });
       el.onclick = async (e) => {

@@ -74,11 +74,18 @@ export async function cercaParlato(env, q, max = 12) {
   // radici: «buchi neri» trova anche «buco nero», «holes» anche «hole»
   const radice = (p) => { const r = p.replace(/(es|s)$/, "").replace(/h?[aeiouyàèéìòù]+$/, ""); return r.length >= 3 && /^[\p{L}]+$/u.test(r) ? r : ""; };
   const domanda = parole.map((p) => (radice(p) ? `${radice(p)}*` : `"${p}"`)).join(" ");
-  const cerchi = parole.map((p) => radice(p) || p);
-  const { results } = await env.PARLATO.prepare("SELECT rowid AS r FROM parlato WHERE parlato MATCH ? ORDER BY rank LIMIT 60").bind(domanda).all();
+  return cercaDomanda(env, domanda, parole.map((p) => radice(p) || p), max);
+}
+
+// la ricerca vera e propria: una domanda FTS già pronta; «escludi» = un video da lasciar fuori
+export async function cercaDomanda(env, domanda, cerchi, max = 12, escludi = "") {
+  if (!env.PARLATO) return [];
+  const fuoriN = escludi ? (await env.PARLATO.prepare("SELECT n FROM trascrizioni WHERE id = ?").bind(escludi).first())?.n : null;
+  const { results } = await env.PARLATO.prepare("SELECT rowid AS r FROM parlato WHERE parlato MATCH ? ORDER BY rank LIMIT 80").bind(domanda).all();
   const migliori = new Map(); // n → [k, …] (al massimo 2 punti per video)
   for (const { r } of results) {
     const n = Math.floor(r / 100000), k = r % 100000;
+    if (n === fuoriN) continue;
     if (!migliori.has(n)) { if (migliori.size >= max) continue; migliori.set(n, []); }
     if (migliori.get(n).length < 2) migliori.get(n).push(k);
   }

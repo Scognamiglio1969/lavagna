@@ -6,6 +6,7 @@ const LINGUE = ["it", "en", "es", "de", "fr"]; // lingue dei canali
 const PAESE = { it: "IT", es: "ES", de: "DE", fr: "FR" };
 import { cercaSuYouTube, infoVideo, paginaCondivisa } from "./youtube.js";
 import { leggiTrascrizione, salvaTrascrizione, segnaRichiesta, cercaParlato, infoFotogrammi, foglio, trascriviConGemini } from "./parlato.js";
+import { simili, semplice, contrario, traduci, mappa, tre, domande, lineaTempo, limite, MESE } from "./scoperta.js";
 import { lavoroPeriodico, salvaVideo, cerca, statoIndice, videoDiCategoria, videoDiCanale, togliCanale, spostaVideo, home } from "./indice.js";
 
 const CACHE_SECONDI = 1800; // ogni feed si rilegge al massimo ogni mezz'ora
@@ -573,6 +574,46 @@ Ignore sponsorships, channel names, series titles and calls to subscribe. Write 
   return [{ errore: "ai" }, 0, 502];
 }
 
+// i momenti trovati nel parlato, con titolo e canale del video
+async function conInfo(env, trovati) {
+  const ids = [...new Set(trovati.map((x) => x.id))];
+  const info = ids.length ? (await env.DB.prepare(`SELECT id, titolo, canale, nome_canale, durata, cat, lingua, data, viste FROM video WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results : [];
+  return trovati.map((x) => { const v = info.find((i) => i.id === x.id); return { ...x, titolo: v?.titolo || "", canale: v?.canale || "", nomeCanale: v?.nome_canale || "", durata: v?.durata || 0, cat: v?.cat || "", lingua: x.lingua || v?.lingua || "", data: v?.data || "" }; });
+}
+
+// SCHOOL · Banco: simili, semplice, contrario, traduci (vedi scoperta.js). Le risposte stanno in cache; l'AI ha un tetto al giorno per persona.
+const MAX_BANCO = { semplice: 30, contrario: 30, traduci: 300, mappa: 30, tre: 30, domande: 30, tempo: 30 };
+async function banco(req, env, pathname) {
+  const u = new URL(req.url), m = pathname.match(/^\/api\/banco\/(simili|semplice|contrario|traduci|mappa|tre|domande|tempo)\/([\w-]{11})$/);
+  if (!m) return json({ errore: "?" }, 0, 404);
+  const [, cosa, id] = m;
+  const ui = LINGUE.includes(u.searchParams.get("ui")) ? u.searchParams.get("ui") : "en";
+  const verso = LINGUE.includes(u.searchParams.get("l")) ? u.searchParams.get("l") : "en", k = Math.max(0, Math.min(2000, Number(u.searchParams.get("k")) || 0));
+  const chiave = new Request(`https://cache.lavagna/banco5/${cosa}/${id}/${cosa === "traduci" ? `${verso}/${k}` : cosa === "simili" ? "" : ui}`);
+  const pronta = await caches.default.match(chiave);
+  if (pronta) return pronta;
+  if (MAX_BANCO[cosa] && !(await limite(env, req, `banco-${cosa}`, MAX_BANCO[cosa]))) return json({ errore: "troppe" }, 0, 429);
+  let d;
+  try {
+    if (cosa === "simili") {
+      const v = await env.DB.prepare("SELECT titolo FROM video WHERE id = ?").bind(id).first();
+      const r = await simili(env, id, v?.titolo || "");
+      d = { parole: r.parole, momenti: await conInfo(env, r.momenti) };
+    }
+    if (cosa === "semplice") d = await semplice(env, id, ui);
+    if (cosa === "contrario") d = await contrario(env, id, ui);
+    if (cosa === "traduci") d = await traduci(env, id, verso, k);
+    if (cosa === "mappa") d = await mappa(env, id, ui);
+    if (cosa === "tre") d = await tre(env, id, ui);
+    if (cosa === "domande") d = await domande(env, id, ui);
+    if (cosa === "tempo") d = await lineaTempo(env, id, ui);
+  } catch { return json({ errore: "ai" }, 0, 502); }
+  if (d.errore) return json(d, 0, d.errore === "trascrizione" || d.errore === "video" ? 404 : 400);
+  const r = json(d, cosa === "simili" ? 3600 : MESE);
+  await caches.default.put(chiave, r.clone()).catch(() => {});
+  return r;
+}
+
 export default {
   async fetch(req, env, ctx) {
     const { pathname, origin } = new URL(req.url);
@@ -624,10 +665,7 @@ export default {
     if (pathname === "/api/parlato" && req.method === "GET") {
       const q = (new URL(req.url).searchParams.get("q") || "").trim().slice(0, 120);
       if (q.length < 2) return json([]);
-      const trovati = await cercaParlato(env, q);
-      const ids = [...new Set(trovati.map((x) => x.id))];
-      const info = ids.length ? (await env.DB.prepare(`SELECT id, titolo, canale, nome_canale, durata, cat, lingua, data, viste FROM video WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results : [];
-      return json(trovati.map((x) => { const v = info.find((i) => i.id === x.id); return { ...x, titolo: v?.titolo || "", canale: v?.canale || "", nomeCanale: v?.nome_canale || "", durata: v?.durata || 0, cat: v?.cat || "", lingua: x.lingua || v?.lingua || "", data: v?.data || "" }; }), 600);
+      return json(await conInfo(env, await cercaParlato(env, q)), 600);
     }
     // per lo script dal Mac: quali video non hanno ancora la trascrizione (prima quelli chiesti, poi i più visti)
     if (pathname === "/api/parlato/mancanti") {
@@ -705,6 +743,7 @@ export default {
     if (pathname === "/api/indice") return json(await statoIndice(env));
     // ——— strumenti didattici proposti dall'AI (mappa, glossario, linea del tempo, domande) dai pezzi di video di una lezione ———
     if (pathname === "/api/strumento" && req.method === "POST") return json(...(await proponiStrumento(req, env)));
+    if (pathname.startsWith("/api/banco/")) return banco(req, env, pathname);
     // ——— il parlato dei video ———
     if (pathname.startsWith("/api/parlato") || pathname.startsWith("/api/fotogrammi/") || pathname.startsWith("/api/foglio/") || pathname.startsWith("/api/lezione/"))
       return this.parlato(req, env, pathname);

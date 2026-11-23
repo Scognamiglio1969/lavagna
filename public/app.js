@@ -1,6 +1,7 @@
 // Lavagna — una pagina, rotte con l'hash: #/, #/c/scienza, #/ch/UC…, #/v/ID, #/cerca/parole, #/salvati, #/tv, #/canali
 // I video vengono da più fonti (campo `fonte`): YouTube (nessun campo), "ia" Internet Archive, "vimeo", "pt" PeerTube.
-import { installa, pannelloVideo, sezioneParlato, vistaScuola, vistaLezione, vistaLezionePubblica, vistaPresenta } from "./studio.js";
+import { installa, pannelloVideo, sezioneParlato, vistaScuola, vistaLezione, vistaLezionePubblica, vistaPresenta, trascrizione, chiediTrascrizione, svgMappa } from "./studio.js";
+import { banco, livello, tappe as tappeDi, LIVELLI } from "./banco.js";
 const $ = (s) => document.querySelector(s);
 const vista = $("#vista");
 
@@ -18,6 +19,14 @@ const T = {
     vuoto: (filtro) => `No videos here${filtro ? " in this language" : ""}.`,
     gruppi: { "Scienze e tecnica": "Science & technology", "Storia e idee": "History & ideas", "Società": "Society", "Arti": "Arts", "Tempo libero": "Leisure", "I tuoi argomenti": "Your topics", "Altri": "Other" },
     nCanali: (n) => `${n} channels`, tutto: "All", argomenti: "Topics", tv: "TV", esplora: "Explore", daVedere: "Watch later", canali: "Channels",
+    ultimi: "Latest", percorso: "Path", percorsoInvito: "A way into the topic, from the first steps to going deeper. Start wherever you like.",
+    tappa1: "To begin", tappa2: "To understand better", tappa3: "To go deeper", tappaSotto1: "short and introductory", tappaSotto2: "the topic explained well", tappaSotto3: "lectures, courses, long videos",
+    livelli: { "": "All levels", medie: "Middle school", liceo: "High school", universita: "University", divulgazione: "Popular science" }, nienteLivello: "Nothing at this level here: try another one.",
+    iscrizioni: "Subscriptions", iscrizioniSotto: "The latest videos from the channels you follow, on this device.", segui: "＋ Follow", seguito: "✓ Following",
+    nessunIscritto: "You don't follow any channel yet: open a channel (or a video) and press «＋ Follow».", daiSeguiti: "From the channels you follow",
+    tu: "You", tuSotto: "Your things, on this device: nothing leaves it.", cronologia: "History", cronologiaSotto: "The videos you opened, most recent first.",
+    cancellaCronologia: "Clear history", cronologiaChiedi: "Clear the whole history on this device?", cronologiaVuota: "Nothing yet: the videos you open will appear here.",
+    canaliSeguiti: "Channels you follow", vediTutto2: "see all →",
     homeErrore: "Can't load the home page right now. Try again shortly.",
     evidenza: "Featured", evidenzaSotto: "most watched this week, one per topic", sfoglia: "Browse by topic", nArgomenti: (n) => `${n} topics`,
     novita: "New", novitaSotto: "just out", vediTutto: "see all →", fineHome: (n) => `From ${n} hand-picked channels, with no ads on the page and no Shorts.`,
@@ -93,7 +102,7 @@ const T = {
     privacyTitolo: "Privacy",
     privacyCorpo: `<p><b>No ads on the page, no tracking, no profiles.</b> Lavagna does not show ads and does not use analytics, advertising or tracking cookies. Videos play in their platform's own player: YouTube may show its ads there (not with YouTube Premium).</p>
       <p><b>Optional account, with a passkey.</b> If you create one, we store only a random id, the name you choose, your passkey's public key and the channels and topics you add. No email, no password. A sign-in cookie keeps you logged in; «Delete my account» erases everything. The passkey library is loaded from jsDelivr only when you sign up or sign in.</p>
-      <p><b>On your device.</b> Your language, theme, video-language filter, playback speed and «Watch later» list are saved in your browser's local storage. They never leave your device and you can clear them at any time from your browser.</p>
+      <p><b>On your device.</b> Your language, theme, video-language filter, playback speed, «Watch later» list, the channels you follow and your history of opened videos are saved in your browser's local storage. They never leave your device and you can clear them at any time from your browser.</p>
       <p><b>Video platforms.</b> Videos are played by their own platforms (YouTube via its privacy-enhanced youtube-nocookie.com player, Vimeo, Internet Archive, PeerTube). When you start a video, that platform may set its own cookies and receives your IP address, under its own privacy policy. Thumbnails are images served by the platforms.</p>
       <p><b>Fonts, only with your consent.</b> With «Accept all», fonts are loaded from Google Fonts, which sees your IP address. With «Essential only», your device's own fonts are used instead.</p>
       <p><b>Server.</b> The site runs on Cloudflare, which processes standard technical data (such as your IP address) to deliver the pages. Lavagna keeps no logs of who watches what.</p>
@@ -105,6 +114,14 @@ const T = {
     vuoto: (filtro) => `Nessun video qui${filtro ? " in questa lingua" : ""}.`,
     gruppi: {},
     nCanali: (n) => `${n} canali`, tutto: "Tutto", argomenti: "Argomenti", tv: "TV", esplora: "Esplora", daVedere: "Da vedere", canali: "Canali",
+    ultimi: "Ultimi", percorso: "Percorso", percorsoInvito: "Un modo per entrare nell'argomento, dai primi passi all'approfondimento. Comincia da dove vuoi.",
+    tappa1: "Per cominciare", tappa2: "Per capire meglio", tappa3: "Per approfondire", tappaSotto1: "brevi e introduttivi", tappaSotto2: "l'argomento spiegato bene", tappaSotto3: "lezioni, corsi, video lunghi",
+    livelli: { "": "Tutti i livelli", medie: "Medie", liceo: "Liceo", universita: "Università", divulgazione: "Divulgazione" }, nienteLivello: "Niente a questo livello qui: provane un altro.",
+    iscrizioni: "Iscrizioni", iscrizioniSotto: "I video nuovi dei canali che segui, su questo dispositivo.", segui: "＋ Segui", seguito: "✓ Lo segui",
+    nessunIscritto: "Non segui ancora nessun canale: apri un canale (o un video) e premi «＋ Segui».", daiSeguiti: "Dai canali che segui",
+    tu: "Tu", tuSotto: "Le tue cose, su questo dispositivo: non escono da qui.", cronologia: "Cronologia", cronologiaSotto: "I video che hai aperto, dal più recente.",
+    cancellaCronologia: "Cancella la cronologia", cronologiaChiedi: "Cancellare tutta la cronologia su questo dispositivo?", cronologiaVuota: "Ancora niente: qui compariranno i video che apri.",
+    canaliSeguiti: "Canali che segui", vediTutto2: "vedi tutto →",
     homeErrore: "Non riesco a caricare la home adesso. Riprova tra poco.",
     evidenza: "In evidenza", evidenzaSotto: "i più visti della settimana, uno per sezione", sfoglia: "Sfoglia per argomento", nArgomenti: (n) => `${n} argomenti`,
     novita: "Novità", novitaSotto: "appena usciti", vediTutto: "vedi tutto →", fineHome: (n) => `Da ${n} canali scelti a mano, senza pubblicità in pagina e senza Shorts.`,
@@ -180,7 +197,7 @@ const T = {
     privacyTitolo: "Privacy",
     privacyCorpo: `<p><b>Niente pubblicità nella pagina, niente tracciamento, niente profili.</b> Lavagna non mostra pubblicità e non usa cookie di statistica, pubblicità o tracciamento. I video girano nel lettore della loro piattaforma: lì YouTube può mostrare i suoi spot (non con YouTube Premium).</p>
       <p><b>Account facoltativo, con passkey.</b> Se lo crei, salviamo solo un id casuale, il nome che scegli, la chiave pubblica della tua passkey e i canali e argomenti che aggiungi. Niente email, niente password. Un cookie d'accesso ti tiene collegato; «Cancella il mio account» cancella tutto. La libreria delle passkey si carica da jsDelivr solo quando ti registri o entri.</p>
-      <p><b>Sul tuo dispositivo.</b> Lingua, tema, filtro della lingua dei video, velocità e lista «Da vedere» sono salvati nella memoria locale del browser. Non lasciano mai il tuo dispositivo e puoi cancellarli quando vuoi dal browser.</p>
+      <p><b>Sul tuo dispositivo.</b> Lingua, tema, filtro della lingua dei video, velocità, lista «Da vedere», canali che segui e cronologia dei video aperti sono salvati nella memoria locale del browser. Non lasciano mai il tuo dispositivo e puoi cancellarli quando vuoi dal browser.</p>
       <p><b>Piattaforme video.</b> I video sono riprodotti dalle loro piattaforme (YouTube con il lettore a privacy avanzata youtube-nocookie.com, Vimeo, Internet Archive, PeerTube). Quando avvii un video, la piattaforma può usare i suoi cookie e riceve il tuo indirizzo IP, secondo la sua informativa. Le miniature sono immagini servite dalle piattaforme.</p>
       <p><b>Caratteri, solo col tuo consenso.</b> Con «Accetta tutti» i caratteri arrivano da Google Fonts, che vede il tuo indirizzo IP. Con «Solo essenziali» si usano quelli del tuo dispositivo.</p>
       <p><b>Server.</b> Il sito gira su Cloudflare, che tratta i dati tecnici di base (come l'indirizzo IP) per consegnare le pagine. Lavagna non tiene registri di chi guarda cosa.</p>
@@ -240,6 +257,23 @@ function chiediEsterno(dove, fonte) {
 const nomeFonte = (v) => ({ ia: "Internet Archive", vimeo: "Vimeo", pt: "PeerTube" })[v?.fonte] || "YouTube";
 
 const visti = new Set(memo.get("visti", []));
+let seguiti = memo.get("seguiti", []); // canali seguiti (iscrizioni), solo su questo dispositivo: [{ id, nome }]
+let cronologia = memo.get("cronologia", []); // video aperti, dal più recente: [{ ...video, visto: ms }]
+const segue = (id) => seguiti.some((x) => x.id === id);
+const indicizzato = (id) => categorie.some((c) => c.canali.some((x) => x.id === id));
+const bottSegui = (id, nome) => (id && indicizzato(id) ? `<button class="bott segui${segue(id) ? " on" : ""}" data-segui="${esc(id)}" data-nome="${esc(nome || "")}">${segue(id) ? t("seguito") : t("segui")}</button>` : "");
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-segui]"); if (!b) return;
+  const id = b.dataset.segui;
+  seguiti = segue(id) ? seguiti.filter((x) => x.id !== id) : [{ id, nome: b.dataset.nome }, ...seguiti];
+  memo.set("seguiti", seguiti);
+  document.querySelectorAll("[data-segui]").forEach((x) => { if (x.dataset.segui !== id) return; x.classList.toggle("on", segue(id)); x.textContent = segue(id) ? t("seguito") : t("segui"); });
+});
+async function videoSeguiti(max = 60) {
+  const liste = await Promise.all(seguiti.map((c) => prendi(`/api/canale/${encodeURIComponent(c.id)}`).catch(() => [])));
+  const gia = new Set();
+  return filtra(liste.flat()).filter((v) => !gia.has(v.id) && gia.add(v.id)).sort((a, b) => String(b.data || "").localeCompare(String(a.data || ""))).slice(0, max);
+}
 let salvati = memo.get("salvati", []); // video interi, così si vedono anche dopo che escono dal feed
 
 const cacheCat = new Map();
@@ -356,8 +390,8 @@ function schede(attiva) {
   $("#schede").innerHTML = voce("", t("tutto"), "✦")
     + `<button class="arg-apri${cat ? " on" : ""}" id="apriArgomenti" aria-expanded="false" aria-controls="argomenti">
         <span class="s">${cat ? cat.segno : "▦"}</span>${cat ? esc(nomeDi(cat)) : t("argomenti")} <span class="freccia">▾</span></button>`
-    + voce("tv", t("tv"), "▶") + voce("esplora", t("esplora"), "⌕") + voce("salvati", t("daVedere"), "★")
-    + voce("scuola", t("scuola"), "✎") + (io ? voce("mia", t("mia"), "◎") : "") + voce("canali", t("canali"), "+");
+    + voce("iscrizioni", t("iscrizioni"), "◉") + voce("tv", t("tv"), "▶") + voce("esplora", t("esplora"), "⌕") + voce("tu", t("tu"), "★")
+    + (io ? voce("mia", t("mia"), "◎") : "") + voce("canali", t("canali"), "+");
   const pannello = $("#argomenti");
   pannello.hidden = true;
   $("#apriArgomenti").onclick = (e) => {
@@ -387,10 +421,11 @@ async function home() {
   const tre = mescola([...d.evidenza]).slice(0, 3); // in evidenza: 3 diversi a ogni caricamento
   const grande = (v) => scheda(v).replace("</h3>", `</h3><p class="estratto">${esc((v.descrizione || "").split("\n")[0].slice(0, 160))}</p>`);
   vista.innerHTML = `<div class="home">
+    <nav class="arg-riga arg-cima" aria-label="${t("argomenti")}">${categorie.map((c) =>
+      `<a href="#/c/${c.id}"><span>${c.segno}</span>${esc(nomeDi(c))}</a>`).join("")}</nav>
     <section class="fila"><div class="fila-testa"><h2>${t("evidenza")}</h2><span>${t("evidenzaSotto")}</span></div>
       <div class="griglia g3 evidenza">${tre.map(grande).join("")}</div></section>
-    <nav class="arg-riga" aria-label="${t("argomenti")}">${categorie.map((c) =>
-      `<a href="#/c/${c.id}"><span>${c.segno}</span>${esc(nomeDi(c))}</a>`).join("")}</nav>
+    <div id="homeSeguiti"></div>
     <section class="fila"><div class="fila-testa"><h2>${t("novita")}</h2><span>${t("novitaSotto")}</span></div>
       <div class="griglia g4">${d.novita.map((v) => scheda(v)).join("")}</div></section>
     ${d.sezioni.map((s) => `<section class="fila"><div class="fila-testa"><h2><a href="#/c/${s.id}">${s.segno} ${esc(nomeDi(s))}</a></h2>
@@ -398,33 +433,81 @@ async function home() {
       <div class="griglia g5">${s.video.map((v) => scheda(v, false)).join("")}</div></section>`).join("")}
     <p class="sotto fine-home">${t("fineHome", canali)}</p>
   </div>`;
+  // i canali che segui, subito sotto «In evidenza»
+  if (seguiti.length) {
+    const v = (await videoSeguiti(5)).filter((x) => !visti.has(x.id)).slice(0, 5);
+    const box = $("#homeSeguiti");
+    if (box && v.length && location.hash.replace(/^#\/?/, "") === "") box.innerHTML = `<section class="fila"><div class="fila-testa"><h2><a href="#/iscrizioni">◉ ${t("daiSeguiti")}</a></h2>
+      <a class="tutti" href="#/iscrizioni">${t("vediTutto2")}</a></div>${griglia(v).replace('class="griglia"', 'class="griglia g5"')}</section>`;
+  }
 }
 
-async function vistaCategoria(id) {
+async function vistaIscrizioni() {
+  schede("iscrizioni");
+  const testa = `<h1>◉ ${t("iscrizioni")}</h1><p class="sotto">${t("iscrizioniSotto")}</p>`;
+  if (!seguiti.length) { vista.innerHTML = testa + `<p class="vuoto">${t("nessunIscritto")}</p>`; return; }
+  const canali = `<div class="seguiti">${seguiti.map((c) => `<span class="seguito-c"><a href="${link("ch", c.id)}">${esc(c.nome || c.id)}</a>${bottSegui(c.id, c.nome)}</span>`).join("")}</div>`;
+  vista.innerHTML = testa + canali + attesa();
+  const v = await videoSeguiti(60);
+  if (!qui("iscrizioni")) return;
+  vista.innerHTML = testa + canali + griglia(v);
+}
+
+function vistaTu() {
+  schede("tu");
+  const recenti = cronologia.slice(0, 200);
+  const giorno = (ms) => { const d = new Date(ms), oggi = new Date(); const g = Math.floor((new Date(oggi.toDateString()) - new Date(d.toDateString())) / 864e5);
+    return g === 0 ? t("oggi") : g === 1 ? t("ieri") : d.toLocaleDateString(ui === "it" ? "it-IT" : "en-GB", { weekday: "long", day: "numeric", month: "long" }); };
+  const gruppi = [];
+  for (const v of recenti) { const g = giorno(v.visto); if (gruppi.at(-1)?.[0] !== g) gruppi.push([g, []]); gruppi.at(-1)[1].push(v); }
+  vista.innerHTML = `<h1>★ ${t("tu")}</h1><p class="sotto">${t("tuSotto")}</p>
+    <section class="fila"><div class="fila-testa"><h2><a href="#/salvati">★ ${t("daVedere")}</a></h2><a class="tutti" href="#/salvati">${t("vediTutto2")}</a></div>
+      ${salvati.length ? griglia(salvati.slice(0, 5)).replace('class="griglia"', 'class="griglia g5"') : `<p class="sotto">${t("daVedereSotto")}</p>`}</section>
+    ${seguiti.length ? `<section class="fila"><div class="fila-testa"><h2><a href="#/iscrizioni">◉ ${t("canaliSeguiti")}</a></h2></div>
+      <div class="seguiti">${seguiti.map((c) => `<span class="seguito-c"><a href="${link("ch", c.id)}">${esc(c.nome || c.id)}</a>${bottSegui(c.id, c.nome)}</span>`).join("")}</div></section>` : ""}
+    <section class="fila"><div class="fila-testa"><h2>↺ ${t("cronologia")}</h2><span>${t("cronologiaSotto")}</span>
+      ${recenti.length ? `<button class="link tutti" id="cancCron">${t("cancellaCronologia")}</button>` : ""}</div>
+      ${recenti.length ? gruppi.map(([g, l]) => `<h3 class="cron-giorno">${esc(g)}</h3>${griglia(l)}`).join("") : `<p class="vuoto">${t("cronologiaVuota")}</p>`}</section>`;
+  $("#cancCron")?.addEventListener("click", () => { if (!confirm(t("cronologiaChiedi"))) return; cronologia = []; memo.set("cronologia", []); vistaTu(); });
+}
+
+async function vistaCategoria(arg) {
+  const [id, modo] = String(arg).split("/");
+  const percorso = modo === "percorso", qui_ = `c/${id}${percorso ? "/percorso" : ""}`;
   const c = categorie.find((x) => x.id === id);
   if (!c) return home();
   schede(`c/${id}`);
+  const liv = memo.get("livello", "");
   const canali = c.canali.filter((x) => lingua === "tutte" || x.lingua === lingua);
   const testa = `<h1>${c.segno} ${esc(nomeDi(c))}</h1>
-    <div class="canalini">${canali.map((x) => `<a href="${link("ch", x.id)}"${x.mio ? ' class="mio"' : ""}>${esc(x.nome)} <small>${x.lingua.toUpperCase()}</small></a>`).join("")}</div>`;
+    <div class="canalini">${canali.map((x) => `<a href="${link("ch", x.id)}"${x.mio ? ' class="mio"' : ""}>${esc(x.nome)} <small>${x.lingua.toUpperCase()}</small></a>`).join("")}</div>
+    <div class="cat-modi"><a href="#/c/${id}" class="${percorso ? "" : "on"}">${t("ultimi")}</a><a href="#/c/${id}/percorso" class="${percorso ? "on" : ""}">➚ ${t("percorso")}</a>
+      <span class="livelli" role="group">${["", ...LIVELLI].map((l) => `<button data-liv="${l}" class="${l === liv ? "on" : ""}">${t("livelli")[l]}</button>`).join("")}</span></div>`;
   vista.innerHTML = testa + attesa();
+  const livelli = () => vista.querySelector(".livelli")?.addEventListener("click", (e) => { const b = e.target.closest("[data-liv]"); if (!b) return; memo.set("livello", b.dataset.liv); vistaCategoria(arg); });
+  livelli();
   try {
     const haMiei = c.canali.some((x) => x.mio) || !!io?.video?.some((x) => x.cat === id);
     const [tuttiV, mieiV] = await Promise.all([
       c.mio ? [] : categoria(id),
       haMiei ? fetch(`/api/mio/feed?cat=${encodeURIComponent(id)}`).then((r) => (r.ok ? r.json() : [])).catch(() => []) : [],
     ]);
-    const v = [...tuttiV, ...mieiV].sort((a, b) => b.data.localeCompare(a.data));
-    if (!qui(`c/${id}`)) return;
-    vista.innerHTML = testa + griglia(filtra(v), false);
-  } catch { vista.innerHTML = testa + `<p class="vuoto">${t("feedErrore")}</p>`; }
+    const v = filtra([...tuttiV, ...mieiV].sort((a, b) => b.data.localeCompare(a.data))).filter((x) => !liv || livello(x) === liv);
+    if (!qui(qui_)) return;
+    if (!percorso) { vista.innerHTML = testa + (v.length ? griglia(v, false) : `<p class="vuoto">${t("nienteLivello")}</p>`); livelli(); return; }
+    const tappe = tappeDi(v);
+    vista.innerHTML = testa + `<p class="sotto percorso-invito">${t("percorsoInvito")}</p>` + (tappe.some((l) => l.length) ? tappe.map((l, i) => (l.length
+      ? `<section class="fila tappa"><div class="fila-testa"><h2><span class="tappa-n">${i + 1}</span> ${t(`tappa${i + 1}`)}</h2><span>${t(`tappaSotto${i + 1}`)}</span></div>${griglia(l, false)}</section>` : "")).join("")
+      : `<p class="vuoto">${t("nienteLivello")}</p>`);
+    livelli();
+  } catch { vista.innerHTML = testa + `<p class="vuoto">${t("feedErrore")}</p>`; livelli(); }
 }
 
 async function vistaCanale(id) {
   const c = categorie.flatMap((k) => k.canali.map((x) => ({ ...x, cat: k }))).find((x) => x.id === id);
   if (!c) return /^UC[\w-]{22}$/.test(id) ? vistaAnteprima(id) : home();
   schede(`c/${c.cat.id}`);
-  const testa = `<h1>${esc(c.nome)}</h1><p class="sotto">${c.cat.segno} ${esc(nomeDi(c.cat))} · ${nomeLingua(c.lingua)} · ${t("ultimiPubblicati")}</p>`;
+  const testa = `<h1>${esc(c.nome)} ${bottSegui(c.id, c.nome)}</h1><p class="sotto">${c.cat.segno} ${esc(nomeDi(c.cat))} · ${nomeLingua(c.lingua)} · ${t("ultimiPubblicati")}</p>`;
   vista.innerHTML = testa + attesa();
   const v = c.mio
     ? (await fetch(`/api/mio/feed?cat=${encodeURIComponent(c.cat.id)}`).then((r) => r.json()).catch(() => [])).filter((x) => x.canale === id)
@@ -641,7 +724,7 @@ function barraVideo(dove, lettore, schermo) {
 }
 
 function vistaSalvati() {
-  schede("salvati");
+  schede("tu");
   vista.innerHTML = `<h1>★ ${t("daVedere")}</h1><p class="sotto">${t("daVedereSotto")}</p>` + griglia(salvati);
 }
 
@@ -649,15 +732,15 @@ async function vistaVideo(id) {
   schede("-");
   vista.innerHTML = `<div class="guarda"><div><div class="schermo" id="schermo"></div>
     <div class="comandi-video" id="comandi"></div>
-    <div id="info"></div></div><aside class="lato"><div id="studio"></div><div id="lato"></div></aside></div>`;
+    <div id="info"></div><div id="banco"></div></div><aside class="lato"><div id="lato"></div></aside></div>`;
   window.scrollTo(0, 0);
   visti.add(id); memo.set("visti", [...visti].slice(-2000));
   const yt = !/^(ia|vm|pt|rai):/.test(id);
   let lettore = null, chiuso = false;
   const cb = { fine() {}, errore() {}, stato() {} };
   const comandi = barraVideo($("#comandi"), () => lettore, () => $("#schermo"));
-  const studio = yt ? pannelloVideo($("#studio"), { id, titolo: "", nomeCanale: "", durata: 0 }, () => lettore) : null;
-  pulisci = () => { chiuso = true; comandi.chiudi(); studio?.chiudi(); try { lettore?.chiudi(); } catch {} };
+  let bancoV = null;
+  pulisci = () => { chiuso = true; comandi.chiudi(); bancoV?.chiudi(); try { lettore?.chiudi(); } catch {} };
   const pronto = (l) => {
     if (chiuso) { l.chiudi(); return; }
     lettore = l; l.velocita?.(memo.get("velocita", 1)); comandi.attiva(!!l.velocita);
@@ -678,7 +761,13 @@ async function vistaVideo(id) {
   } else if (v.fonte === "vimeo") pronto(await lettoreVimeo($("#schermo"), v.embed, 100, cb, true));
   else if (v.fonte === "pt") { await lettoreSemplice(v, $("#schermo")); comandi.attiva(false); } // PeerTube: velocità dal suo menu
   document.title = `${v.titolo} — Lavagna`;
-  if (studio) studio.video?.(v);
+  // SCHOOL · Banco: tutte le funzioni per studiare, in una riga sotto il video
+  bancoV = banco($("#banco"), v, {
+    ui: () => ui, memo, avvisa, apriVideo, pannelloVideo, trascrizione, chiediTrascrizione, lettore: () => lettore, schermo: () => $("#schermo"),
+    svgMappa, categoria: (c) => categorie.find((x) => x.id === c), nomeCat,
+  });
+  // cronologia: in cima il più recente, senza doppioni, al massimo 500
+  { const { descrizione, ...corto } = v; cronologia = [{ ...corto, visto: Date.now() }, ...cronologia.filter((x) => x.id !== v.id)].slice(0, 500); memo.set("cronologia", cronologia); }
   // frecce: ordine dell'elenco da cui sei arrivato, altrimenti i video dello stesso argomento
   const elencoFrecce = sequenza.includes(id) ? sequenza : filtra(await categoria(v.cat).catch(() => [])).map((x) => x.id);
   const i = elencoFrecce.indexOf(id);
@@ -691,7 +780,7 @@ async function vistaVideo(id) {
   const salvato = () => salvati.some((x) => x.id === id);
   const disegna = () => {
     $("#info").innerHTML = `<h1>${esc(v.titolo)}</h1>
-      <div class="riga">${v.canale ? `<a class="can" href="${link("ch", v.canale)}">${esc(v.nomeCanale)}</a>` : `<span>${esc(v.nomeCanale || "")}</span>`}
+      <div class="riga">${v.canale ? `<a class="can" href="${link("ch", v.canale)}">${esc(v.nomeCanale)}</a>${bottSegui(v.canale, v.nomeCanale)}` : `<span>${esc(v.nomeCanale || "")}</span>`}
       ${v.data ? `<span>${quando(v.data)}</span>` : v.quando ? `<span>${esc(v.quando)}</span>` : ""}
       ${v.viste ? `<span>${viste(v.viste)}</span>` : ""}${v.cat && nomeCat(v.cat) ? `<a href="#/c/${v.cat}">${esc(nomeCat(v.cat))}</a>` : ""}
       <button class="bott${salvato() ? " on" : ""}" id="salva">${salvato() ? t("salvato") : t("salva")}</button>
@@ -1325,6 +1414,8 @@ function rotta() {
   if (tipo === "cerca" && arg) return vistaCerca(arg);
   if (tipo === "esplora") return vistaCerca("");
   if (tipo === "salvati") return vistaSalvati();
+  if (tipo === "iscrizioni") return vistaIscrizioni();
+  if (tipo === "tu") return vistaTu();
   if (tipo === "canali") return vistaCanali();
   if (tipo === "tv") return vistaTV();
   if (tipo === "privacy") return vistaPrivacy();
