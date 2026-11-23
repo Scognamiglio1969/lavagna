@@ -613,9 +613,11 @@ async function banco(req, env, pathname) {
     if (cosa === "domande") d = await domande(env, id, ui, chiaveGemini);
     if (cosa === "tempo") d = await lineaTempo(env, id, ui, chiaveGemini);
   } catch (e) {
-    if (e instanceof ErroreGemini && e.tipo === "quota") return json({ errore: "quota" }, 0, 429);
-    if (e instanceof ErroreGemini && e.tipo === "nonValida") return json({ errore: "nonValida" }, 0, 403);
-    return json({ errore: "ai" }, 0, 502);
+    const dettaglio = e?.dettaglio || "";
+    if (e instanceof ErroreGemini && e.tipo === "quota") return json({ errore: "quota", dettaglio }, 0, 429);
+    if (e instanceof ErroreGemini && e.tipo === "nonValida") return json({ errore: "nonValida", dettaglio }, 0, 403);
+    console.log("banco", cosa, id, String(e?.message || e), dettaglio);
+    return json({ errore: "ai", dettaglio }, 0, 502);
   }
   if (d.errore) return json(d, 0, d.errore === "trascrizione" || d.errore === "video" ? 404 : 400);
   const r = json(d, cosa === "simili" ? 3600 : MESE);

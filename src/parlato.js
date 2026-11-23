@@ -5,7 +5,7 @@
 //  - quello che c'è già: una volta fatta, la trascrizione serve a tutti.
 
 const FINESTRA = 120; // secondi: la ricerca trova la finestra, poi la riga giusta dentro
-const MODELLI_GEMINI = [["gemini-2.5-flash", true], ["gemini-flash-latest", false]]; // [nome, accetta thinkingBudget]
+const MODELLI_GEMINI = [["gemini-2.5-flash", true], ["gemini-flash-latest", false], ["gemini-flash-lite-latest", false]]; // [nome, accetta thinkingBudget]
 const MAX_GEMINI_GIORNO = 30; // trascrizioni con Gemini per indirizzo al giorno (la chiave è di chi la usa, i nostri limiti no)
 
 const pulisci = (s) => String(s || "").replace(/\s+/g, " ").trim();
@@ -193,7 +193,8 @@ export async function trascriviConGemini(env, id, chiave, durata = 0, ip = "") {
     const r = await chiediGemini(chiave, id, da, a);
     if (r.errore) {
       const s = r.errore.stato;
-      return { errore: s === 400 || s === 401 || s === 403 ? "chiave" : s === 429 ? "quota" : "gemini", stato: s === 429 ? 429 : 502, dettaglio: (r.errore.messaggio || "").slice(0, 200) };
+      const m = r.errore.messaggio || "";
+      return { errore: s === 401 || /API key|API_KEY|PERMISSION_DENIED/i.test(m) ? "chiave" : s === 429 ? "quota" : "gemini", stato: s === 429 ? 429 : 502, dettaglio: (r.errore.messaggio || "").slice(0, 200) };
     }
     righe.push(...righeDaGemini(r.testo, da));
   }

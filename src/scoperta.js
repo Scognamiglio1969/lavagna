@@ -13,27 +13,33 @@ const LINGUE = { it: "Italian", en: "English", es: "Spanish", de: "German", fr: 
 const MESE = 30 * 86400;
 
 // Gemini con la chiave di chi usa SCHOOL (gratuita, sua: Lavagna non mette la propria per nessuno)
-const MODELLI_GEMINI = ["gemini-2.5-flash", "gemini-flash-latest"];
-export class ErroreGemini extends Error { constructor(tipo) { super(tipo); this.tipo = tipo; } }
+// [modello, accetta il ragionamento spento]: «-latest» vuole ragionare, quindi lì non si chiede di spegnerlo
+const MODELLI_GEMINI = [["gemini-2.5-flash", true], ["gemini-flash-latest", false], ["gemini-flash-lite-latest", false]];
+export class ErroreGemini extends Error { constructor(tipo, dettaglio = "") { super(tipo); this.tipo = tipo; this.dettaglio = dettaglio; } }
 async function ai(env, sistema, domanda, max = 900, chiave = "") {
   if (!chiave) throw new ErroreGemini("chiave");
   let ultimo = new ErroreGemini("ai");
-  for (const modello of MODELLI_GEMINI) {
+  for (const [modello, spento] of MODELLI_GEMINI) {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modello}:generateContent`, {
       method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": chiave },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: sistema }] },
         contents: [{ role: "user", parts: [{ text: domanda }] }],
-        generationConfig: { responseMimeType: "application/json", maxOutputTokens: Math.max(2048, max * 2), temperature: 0.4, thinkingConfig: { thinkingBudget: 0 } },
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: Math.max(4096, max * 3), temperature: 0.4, ...(spento ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
       }),
-    }).catch(() => null);
+    }).catch((e) => { ultimo = new ErroreGemini("ai", String(e).slice(0, 200)); return null; });
     if (!r) continue;
-    if (r.status === 400 || r.status === 401 || r.status === 403) { const t = await r.text(); if (/API_KEY|API key|PERMISSION/i.test(t)) throw new ErroreGemini("nonValida"); ultimo = new ErroreGemini("ai"); continue; }
-    if (r.status === 429) { ultimo = new ErroreGemini("quota"); continue; }
-    if (!r.ok) continue;
-    const d = await r.json().catch(() => null);
-    const testo = (d?.candidates?.[0]?.content?.parts || []).map((x) => x.text || "").join("");
-    try { const a = testo.search(/[{[]/), z = Math.max(testo.lastIndexOf("}"), testo.lastIndexOf("]")); return JSON.parse(testo.slice(a, z + 1)); } catch { ultimo = new ErroreGemini("ai"); }
+    const d = await r.json().catch(() => ({}));
+    const messaggio = String(d.error?.message || "").slice(0, 300);
+    if (!r.ok) {
+      console.log(`Gemini ${modello}: ${r.status} ${messaggio}`); // nei log di Cloudflare, senza la chiave
+      if (/API key|API_KEY|PERMISSION_DENIED/i.test(messaggio) || r.status === 401) throw new ErroreGemini("nonValida", messaggio);
+      ultimo = new ErroreGemini(r.status === 429 ? "quota" : "ai", messaggio);
+      continue;
+    }
+    const testo = (d.candidates?.[0]?.content?.parts || []).filter((x) => !x.thought).map((x) => x.text || "").join("");
+    try { const a = testo.search(/[{[]/), z = Math.max(testo.lastIndexOf("}"), testo.lastIndexOf("]")); return JSON.parse(testo.slice(a, z + 1)); }
+    catch { ultimo = new ErroreGemini("ai", `${modello}: ${d.candidates?.[0]?.finishReason || "risposta non leggibile"}`); console.log(`Gemini ${modello}: risposta non leggibile`, d.candidates?.[0]?.finishReason); }
   }
   throw ultimo;
 }

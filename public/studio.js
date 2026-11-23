@@ -18,6 +18,7 @@ const S = {
     trascrizione: "Transcript", appunti: "Notes", cercaQui: "Search what is said in this video…", segui: "Follow the video",
     nessunaTr: "This video has no transcript in Lavagna yet.", nessunParlato: "YouTube has no subtitles for this video.",
     conGemini: "You can make it with Gemini, free: you need an API key from Google AI Studio. The key stays only in this browser and passes through Lavagna just for this request.",
+    conLaTua: "Your Gemini key is ready: one tap and Lavagna transcribes this video with it (about a minute). Then the transcript is there for everyone.", rispostaGoogle: "Google answered:",
     prendiChiave: "Get a key", chiaveGemini: "Gemini API key", trascrivi: "Transcribe with Gemini", cambiaChiave: "change key",
     ascolta: "Gemini is listening to the video… it can take a couple of minutes.", fatta: "Done. The transcript is now in Lavagna for everyone.",
     erroreChiave: "Gemini did not accept the key. Check it on Google AI Studio.", erroreQuota: "Your Gemini key has reached its limit for now. Try again later.",
@@ -55,6 +56,7 @@ const S = {
   it: {
     trascrizione: "Trascrizione", appunti: "Appunti", cercaQui: "Cerca in quello che si dice nel video…", segui: "Segui il video",
     nessunaTr: "Questo video non ha ancora la trascrizione in Lavagna.", nessunParlato: "YouTube non ha sottotitoli per questo video.",
+    conLaTua: "La tua chiave Gemini è pronta: un tocco e Lavagna trascrive questo video con quella (circa un minuto). Poi la trascrizione resta per tutti.", rispostaGoogle: "Risposta di Google:",
     conGemini: "Puoi farla tu con Gemini, gratis: serve una chiave API di Google AI Studio. La chiave resta solo in questo browser e passa da Lavagna solo per questa richiesta.",
     prendiChiave: "Prendi una chiave", chiaveGemini: "Chiave API di Gemini", trascrivi: "Trascrivi con Gemini", cambiaChiave: "cambia chiave",
     ascolta: "Gemini sta ascoltando il video… può volerci un paio di minuti.", fatta: "Fatto. Ora la trascrizione è in Lavagna per tutti.",
@@ -268,7 +270,7 @@ export function chiediTrascrizione(box, id, fonte, fatto) {
   const chiave = C.memo.get("chiaveGemini", "");
   box.innerHTML = `<div class="tr-manca"><p><strong>${fonte === "nessuna" ? s("nessunParlato") : s("nessunaTr")}</strong></p>
     <div class="chiedi-due">
-      <div class="chiedi"><h4>${s("subitoT")}</h4><p class="sotto">${s("conGemini")} <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">${s("prendiChiave")} ↗</a></p>
+      <div class="chiedi"><h4>${s("subitoT")}</h4><p class="sotto">${chiave ? s("conLaTua") : `${s("conGemini")} <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">${s("prendiChiave")} ↗</a>`}</p>
         <form class="g-form">${chiave ? "" : `<input type="password" class="g-chiave" placeholder="${s("chiaveGemini")}" autocomplete="off" required aria-label="${s("chiaveGemini")}">`}
         <button class="bott on">${s("trascrivi")}</button>${chiave ? ` <button type="button" class="link g-cambia">${s("cambiaChiave")}</button>` : ""}</form>
         <p class="msg g-msg" role="status"></p></div>
@@ -288,7 +290,7 @@ export function chiediTrascrizione(box, id, fonte, fatto) {
     if (r?.ok && d.righe?.length) { C.memo.set("chiaveGemini", k); trascrizioni.set(id, Promise.resolve(d)); C.avvisa(s("fatta")); fatto?.(); return; }
     b.disabled = false;
     if (d.errore === "chiave") C.memo.set("chiaveGemini", "");
-    msg.textContent = { chiave: s("erroreChiave"), quota: s("erroreQuota"), troppe: s("erroreTroppe"), vuota: s("erroreVuota") }[d.errore] || s("erroreGemini");
+    msg.textContent = ({ chiave: s("erroreChiave"), quota: s("erroreQuota"), troppe: s("erroreTroppe"), vuota: s("erroreVuota") }[d.errore] || s("erroreGemini")) + (d.dettaglio ? ` ${s("rispostaGoogle")} ${d.dettaglio}` : "");
     if (d.errore === "chiave") setTimeout(() => chiediTrascrizione(box, id, fonte, fatto), 2500);
   };
 }

@@ -16,6 +16,7 @@ const P = {
     errFormato: "This does not look like a key: it starts with AIza and is about forty characters long.", errNonValida: "Google says this key does not work: check you copied all of it.",
     errGiaUsata: "This key is already linked to another Lavagna: everyone must use their own.", errQuota: "Your key has used up today's free requests: try again tomorrow.",
     chiaveOk: "Gemini key: ready", cambiaChiave: "change", togliChiave: "remove", chiaveAltroDispositivo: "On this device your key is missing: paste it again (the same as before is fine).",
+    rispostaGoogle: "Google answered:",
     esporta: "Export", esportaSotto: "Choose what to put in the document. What is not ready yet gets made now (it can take half a minute).", preparo: "Preparing…",
     esportato: "Done: the file is in your downloads.", erroreEsporta: "The export did not work: try again.", pdfTipo: "Study sheet", creatoIl: "Created on",
     tre: "3 key points", mappa: "Mind map", domande: "Review questions", tempo: "Timeline", scaricaMappa: "Download the map (SVG)", ingrandisci: "Tap to enlarge, tap again to close", mostraRisposta: "Show the answer",
@@ -41,6 +42,7 @@ const P = {
     errFormato: "Non sembra una chiave: comincia con AIza ed è lunga una quarantina di caratteri.", errNonValida: "Google dice che questa chiave non funziona: controlla di averla copiata tutta.",
     errGiaUsata: "Questa chiave è già collegata a un'altra Lavagna: ognuno deve usare la sua.", errQuota: "La tua chiave ha finito le richieste gratuite di oggi: riprova domani.",
     chiaveOk: "Chiave Gemini: pronta", cambiaChiave: "cambia", togliChiave: "togli", chiaveAltroDispositivo: "Su questo dispositivo la tua chiave non c'è: incollala di nuovo (va bene la stessa di prima).",
+    rispostaGoogle: "Risposta di Google:",
     esporta: "Esporta", esportaSotto: "Scegli cosa mettere nel documento. Quello che non è ancora pronto si prepara adesso (può volerci mezzo minuto).", preparo: "Preparo…",
     esportato: "Fatto: il file è nei tuoi download.", erroreEsporta: "L'export non è riuscito: riprova.", pdfTipo: "Scheda di studio", creatoIl: "Creata il",
     tre: "Tre punti", mappa: "Mappa mentale", domande: "Domande per ripassare", tempo: "Linea del tempo", scaricaMappa: "Scarica la mappa (SVG)", ingrandisci: "Tocca per ingrandire, tocca di nuovo per chiudere", mostraRisposta: "Mostra la risposta",
@@ -185,7 +187,7 @@ export function banco(dove, v, A) {
     if (d.errore === "trascrizione") { const t = await A.trascrizione(v.id); return A.chiediTrascrizione(pannello, v.id, t.fonte, () => { if (aperto === cosa) apri(cosa, true); }); }
     if (stato === 401) return mostraEntra(cosa);
     if (d.errore === "chiave" || d.errore === "nonValida") return mostraChiave(cosa, d.errore === "nonValida" ? p("errNonValida") : "");
-    pannello.innerHTML = `<p class="sotto">${d.errore === "quota" ? p("errQuota") : stato === 429 ? p("troppe") : p("erroreAI")}</p>`;
+    pannello.innerHTML = `<p class="sotto">${d.errore === "quota" ? p("errQuota") : stato === 429 ? p("troppe") : p("erroreAI")}</p>${d.dettaglio ? `<p class="bp-nota">${p("rispostaGoogle")} ${esc(d.dettaglio)}</p>` : ""}`;
   }
   const nota = () => `<p class="bp-nota">${p("controlla")}</p>`;
   const vai = (sec) => { try { A.lettore()?.vai?.(sec); A.lettore()?.play?.(); } catch {} };
