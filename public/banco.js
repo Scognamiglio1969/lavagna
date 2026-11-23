@@ -16,6 +16,7 @@ const P = {
     errFormato: "This does not look like a key: it is one long line that starts with AIza or AQ., with no spaces.", errNonValida: "Google says this key does not work: check you copied all of it.",
     errGiaUsata: "This key is already linked to another Lavagna: everyone must use their own.", errQuota: "Your key has used up today's free requests: try again tomorrow.",
     chiaveOk: "Gemini key: ready", cambiaChiave: "change", togliChiave: "remove", chiaveAltroDispositivo: "On this device your key is missing: paste it again (the same as before is fine).",
+    aspetto: "Still waiting for:", esportatoSenza: (x) => `Done, the file is in your downloads, but without: ${x} (Gemini did not answer in time; try again later and they will be ready).`,
     rispostaGoogle: "Google answered:", lento: "Gemini is slow right now. I keep going: you can close this, the answer will be ready next time you open it.",
     esporta: "Export", esportaSotto: "Choose what to put in the document. What is not ready yet gets made now (it can take half a minute).", preparo: "Preparing…",
     esportato: "Done: the file is in your downloads.", erroreEsporta: "The export did not work: try again.", pdfTipo: "Study sheet", creatoIl: "Created on",
@@ -42,6 +43,7 @@ const P = {
     errFormato: "Non sembra una chiave: è una riga lunga che comincia con AIza oppure con AQ., senza spazi.", errNonValida: "Google dice che questa chiave non funziona: controlla di averla copiata tutta.",
     errGiaUsata: "Questa chiave è già collegata a un'altra Lavagna: ognuno deve usare la sua.", errQuota: "La tua chiave ha finito le richieste gratuite di oggi: riprova domani.",
     chiaveOk: "Chiave Gemini: pronta", cambiaChiave: "cambia", togliChiave: "togli", chiaveAltroDispositivo: "Su questo dispositivo la tua chiave non c'è: incollala di nuovo (va bene la stessa di prima).",
+    aspetto: "Aspetto ancora:", esportatoSenza: (x) => `Fatto, il file è nei tuoi download, ma senza: ${x} (Gemini non ha risposto in tempo; riprova più tardi e saranno pronti).`,
     rispostaGoogle: "Risposta di Google:", lento: "Gemini in questo momento è lento. Vado avanti: puoi anche chiudere, la risposta sarà pronta la prossima volta che lo apri.",
     esporta: "Esporta", esportaSotto: "Scegli cosa mettere nel documento. Quello che non è ancora pronto si prepara adesso (può volerci mezzo minuto).", preparo: "Preparo…",
     esportato: "Fatto: il file è nei tuoi download.", erroreEsporta: "L'export non è riuscito: riprova.", pdfTipo: "Scheda di studio", creatoIl: "Creata il",
@@ -259,8 +261,9 @@ export function banco(dove, v, A) {
     const E = await import("./esporta.js");
     if (aperto !== "esporta") return;
     const voci = E.PARTI.filter((k) => k !== "contrario" || ICONE.some(([x]) => x === "contrario"));
+    const nome = (k) => p({ appunti: "ap", trascrizione: "tr" }[k] || k);
     pannello.innerHTML = `<p>${p("esportaSotto")}</p>
-      <div class="bp-scelte">${voci.map((k) => `<label><input type="checkbox" value="${k}" ${k !== "trascrizione" ? "checked" : ""}> ${p(k)}</label>`).join("")}</div>
+      <div class="bp-scelte">${voci.map((k) => `<label><input type="checkbox" value="${k}" ${k !== "trascrizione" ? "checked" : ""}> ${nome(k)}</label>`).join("")}</div>
       <div class="bp-esporta"><button class="bott on grande" data-f="pdf">⤓ PDF</button><button class="bott grande" data-f="docx">⤓ Word (.docx)</button></div>
       <p class="msg" id="bpEsMsg" role="status"></p>`;
     pannello.querySelector(".bp-esporta").onclick = async (e) => {
@@ -268,12 +271,14 @@ export function banco(dove, v, A) {
       const scelte = [...pannello.querySelectorAll(".bp-scelte input:checked")].map((x) => x.value);
       const msg = pannello.querySelector("#bpEsMsg"), bottoni = pannello.querySelectorAll(".bp-esporta button");
       bottoni.forEach((b) => (b.disabled = true));
-      const fatti = [];
-      msg.innerHTML = `<span class="bp-attesa">${p("preparo")}</span>`;
+      // si vede cosa è pronto e cosa si sta ancora aspettando
+      const fatti = [], attesa = new Set(scelte);
+      const scrivi = () => { if (msg.isConnected) msg.innerHTML = `<span class="bp-attesa">${p("preparo")}</span>${fatti.length ? ` ✓ ${fatti.join(" · ")}` : ""}${attesa.size ? `<br><small>${p("aspetto")} ${[...attesa].map(nome).join(" · ")}</small>` : ""}`; };
+      scrivi();
       try {
-        const d = await E.raccogli(v, A, scelte, (k) => { fatti.push(p(k)); if (msg.isConnected) msg.innerHTML = `<span class="bp-attesa">${p("preparo")}</span> ✓ ${fatti.join(" · ")}`; });
+        const d = await E.raccogli(v, A, scelte, (k, ok) => { attesa.delete(k); fatti.push(ok ? nome(k) : `✗ ${nome(k)}`); scrivi(); });
         await (f === "pdf" ? E.pdf(d, A, p) : E.word(d, A, p));
-        if (msg.isConnected) msg.textContent = p("esportato");
+        if (msg.isConnected) msg.textContent = d.mancanti?.length ? p("esportatoSenza", d.mancanti.map(nome).join(", ")) : p("esportato");
       } catch (err) { console.error(err); if (msg.isConnected) msg.textContent = p("erroreEsporta"); }
       finally { bottoni.forEach((b) => (b.disabled = false)); }
     };

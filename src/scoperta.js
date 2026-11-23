@@ -34,7 +34,8 @@ async function ai(env, sistema, domanda, max = 900, chiave = "") {
           contents: [{ role: "user", parts: [{ text: domanda }] }],
           generationConfig: { responseMimeType: "application/json", maxOutputTokens: Math.max(4096, max * 3), temperature: 0.4, ...(conPensiero ? pensiero(modello) : {}) },
         }),
-      }).catch((e) => { ultimo = new ErroreGemini("ai", String(e).slice(0, 200)); return null; });
+        signal: AbortSignal.timeout(55000), // un modello che non risponde non deve tenere appeso tutto
+      }).catch((e) => { ultimo = new ErroreGemini("ai", /timeout|abort/i.test(String(e)) ? `${modello}: nessuna risposta in 55 secondi` : String(e).slice(0, 200)); console.log(`Gemini ${modello}: ${String(e).slice(0, 120)}`); return null; });
       if (!r) break;
       const d = await r.json().catch(() => ({}));
       const messaggio = String(d.error?.message || "").slice(0, 300);

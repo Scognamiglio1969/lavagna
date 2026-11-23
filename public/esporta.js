@@ -13,18 +13,21 @@ export const PARTI = ["tre", "semplice", "mappa", "domande", "tempo", "contrario
 export async function raccogli(v, A, scelte, avanza = () => {}) {
   const d = { v, data: new Date() };
   const ai = ["tre", "semplice", "mappa", "domande", "tempo", "contrario", "simili"].filter((k) => scelte.includes(k));
+  // ogni parte ha al massimo un minuto e mezzo: se Gemini non risponde, il documento si fa lo stesso senza
+  d.mancanti = [];
   await Promise.all(ai.map(async (k) => {
-    const r = await fetch(`/api/banco/${k}/${v.id}?ui=${A.ui()}`, { headers: { "x-gemini-key": A.memo.get("chiaveGemini", "") } }).catch(() => null);
+    const r = await fetch(`/api/banco/${k}/${v.id}?ui=${A.ui()}`, { headers: { "x-gemini-key": A.memo.get("chiaveGemini", "") }, signal: AbortSignal.timeout(90000) }).catch(() => null);
     d[k] = r?.ok ? await r.json().catch(() => null) : null;
-    avanza(k);
+    if (!d[k]) d.mancanti.push(k);
+    avanza(k, !!d[k]);
   }));
   if (d.mappa?.testo) d.mappa.png = await svgPng(A.svgMappa(d.mappa.testo, d.mappa.centro || v.titolo)).catch(() => null);
   if (scelte.includes("appunti")) {
     d.appunti = await A.appuntiDi(v.id);
     for (const p of d.appunti) p.foto = (await A.fotogramma(v.id, p.da, v.durata).catch(() => null))?.src || null;
-    avanza("appunti");
+    avanza("appunti", true);
   }
-  if (scelte.includes("trascrizione")) { d.trascrizione = (await A.trascrizione(v.id))?.righe || []; avanza("trascrizione"); }
+  if (scelte.includes("trascrizione")) { d.trascrizione = (await A.trascrizione(v.id))?.righe || []; avanza("trascrizione", true); }
   return d;
 }
 
