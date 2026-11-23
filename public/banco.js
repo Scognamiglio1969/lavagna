@@ -10,10 +10,10 @@ const P = {
   en: {
     entraT: "SCHOOL is for those who have their own Lavagna", entraSotto: "Create it here in one tap, then add your free Gemini key and everything works.",
     chiaveT: "Your Gemini key (free)", chiaveSotto: "SCHOOL's tools use Gemini, Google's AI. Everyone uses their own key: it is free and takes a minute.",
-    passi: ["Open <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\" rel=\"noopener\">Google AI Studio ↗</a> and sign in with your Google account.", "Press «Create API key».", "If it asks, choose «Create API key in new project».", "Copy the key (one line that starts with «AIza») and paste it here."],
-    incollaChiave: "Paste your key (AIza…)", salvaChiave: "Save and continue", verifico: "Checking the key with Google…",
+    passi: ["Open <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\" rel=\"noopener\">Google AI Studio ↗</a> and sign in with your Google account.", "Press «Create API key».", "If it asks, choose «Create API key in new project».", "Press «Copy key» (the key is one long line: it starts with «AQ.» or «AIza») and paste it here."],
+    incollaChiave: "Paste your key (AIza… or AQ.…)", salvaChiave: "Save and continue", verifico: "Checking the key with Google…",
     chiaveNote: "No credit card: Google's free plan is enough to study every day. The key stays only in this browser: Lavagna does not keep it, only a fingerprint to check that each key is used by one person only. On the free plan Google may use what you send to improve its services. You can remove it whenever you like.",
-    errFormato: "This does not look like a key: it starts with AIza and is about forty characters long.", errNonValida: "Google says this key does not work: check you copied all of it.",
+    errFormato: "This does not look like a key: it is one long line that starts with AIza or AQ., with no spaces.", errNonValida: "Google says this key does not work: check you copied all of it.",
     errGiaUsata: "This key is already linked to another Lavagna: everyone must use their own.", errQuota: "Your key has used up today's free requests: try again tomorrow.",
     chiaveOk: "Gemini key: ready", cambiaChiave: "change", togliChiave: "remove", chiaveAltroDispositivo: "On this device your key is missing: paste it again (the same as before is fine).",
     rispostaGoogle: "Google answered:",
@@ -36,10 +36,10 @@ const P = {
   it: {
     entraT: "SCHOOL è per chi ha la sua Lavagna", entraSotto: "La crei qui con un tocco, poi aggiungi la tua chiave Gemini gratuita e funziona tutto.",
     chiaveT: "La tua chiave Gemini (gratuita)", chiaveSotto: "Gli strumenti di SCHOOL usano Gemini, l'intelligenza artificiale di Google. Ognuno usa la sua chiave: è gratuita e si fa in un minuto.",
-    passi: ["Apri <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\" rel=\"noopener\">Google AI Studio ↗</a> ed entra con il tuo account Google.", "Premi «Create API key» (Crea chiave API).", "Se te lo chiede, scegli «Create API key in new project» (in un nuovo progetto).", "Copia la chiave (una riga che comincia con «AIza») e incollala qui."],
-    incollaChiave: "Incolla la tua chiave (AIza…)", salvaChiave: "Salva e continua", verifico: "Controllo la chiave con Google…",
+    passi: ["Apri <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\" rel=\"noopener\">Google AI Studio ↗</a> ed entra con il tuo account Google.", "Premi «Create API key» (Crea chiave API).", "Se te lo chiede, scegli «Create API key in new project» (in un nuovo progetto).", "Premi «Copy key» (la chiave è una riga lunga che comincia con «AQ.» oppure «AIza») e incollala qui."],
+    incollaChiave: "Incolla la tua chiave (AIza… o AQ.…)", salvaChiave: "Salva e continua", verifico: "Controllo la chiave con Google…",
     chiaveNote: "Niente carta di credito: il piano gratuito di Google basta per studiare ogni giorno. La chiave resta solo in questo browser: Lavagna non la conserva, tiene solo un'impronta per controllare che ogni chiave sia usata da una sola persona. Con il piano gratuito Google può usare i testi inviati per migliorare i suoi servizi. Puoi toglierla quando vuoi.",
-    errFormato: "Non sembra una chiave: comincia con AIza ed è lunga una quarantina di caratteri.", errNonValida: "Google dice che questa chiave non funziona: controlla di averla copiata tutta.",
+    errFormato: "Non sembra una chiave: è una riga lunga che comincia con AIza oppure con AQ., senza spazi.", errNonValida: "Google dice che questa chiave non funziona: controlla di averla copiata tutta.",
     errGiaUsata: "Questa chiave è già collegata a un'altra Lavagna: ognuno deve usare la sua.", errQuota: "La tua chiave ha finito le richieste gratuite di oggi: riprova domani.",
     chiaveOk: "Chiave Gemini: pronta", cambiaChiave: "cambia", togliChiave: "togli", chiaveAltroDispositivo: "Su questo dispositivo la tua chiave non c'è: incollala di nuovo (va bene la stessa di prima).",
     rispostaGoogle: "Risposta di Google:",
@@ -143,8 +143,8 @@ export function banco(dove, v, A) {
     const f = pannello.querySelector(".bp-chiave"), msg = pannello.querySelector(".msg");
     f.onsubmit = async (e) => {
       e.preventDefault();
-      const chiave = f.querySelector("input").value.trim();
-      if (!/^[\w-]{30,60}$/.test(chiave)) { msg.textContent = p("errFormato"); return; }
+      const chiave = f.querySelector("input").value.replace(/\s+/g, "");
+      if (!/^[\w.-]{30,200}$/.test(chiave)) { msg.textContent = p("errFormato"); return; }
       msg.textContent = p("verifico"); f.querySelector("button").disabled = true;
       const r = await fetch("/api/conto/gemini", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chiave }) }).catch(() => null);
       const d = await r?.json().catch(() => ({})) || {};

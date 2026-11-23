@@ -146,8 +146,8 @@ export async function gestisciConto(req, env, pathname) {
   if (azione === "/gemini" && req.method === "POST") {
     const u = await utenteDa(req, env);
     if (!u) return json({ errore: "accesso" }, 401);
-    const chiave = String(corpo.chiave || "").trim();
-    if (!/^[\w-]{30,60}$/.test(chiave)) return json({ errore: "formato" }, 400);
+    const chiave = String(corpo.chiave || "").replace(/\s+/g, "");
+    if (!/^[\w.-]{30,200}$/.test(chiave)) return json({ errore: "formato" }, 400);
     // la chiave funziona? (l'elenco dei modelli non consuma la quota)
     const prova = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", { headers: { "x-goog-api-key": chiave } }).catch(() => null);
     if (!prova?.ok) return json({ errore: "nonValida" }, 400);
@@ -187,7 +187,7 @@ export async function gestisciConto(req, env, pathname) {
 
 // la chiave mandata con la richiesta è proprio quella collegata a questa Lavagna?
 export async function chiaveDi(env, utente, chiave) {
-  if (!utente || !/^[\w-]{30,60}$/.test(chiave || "")) return false;
+  if (!utente || !/^[\w.-]{30,200}$/.test(chiave || "")) return false;
   const r = await env.DB.prepare("SELECT utente FROM chiavi_gemini WHERE impronta = ?").bind(await impronta(`gemini:${chiave}`)).first();
   return r?.utente === utente;
 }

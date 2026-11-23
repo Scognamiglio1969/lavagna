@@ -717,7 +717,7 @@ export default {
       // con la chiave Gemini di chi guarda: passa solo di qui, non si salva né si scrive da nessuna parte
       if (req.method !== "POST") return json({ errore: "POST" }, 0, 405);
       const g = (req.headers.get("x-gemini-key") || "").trim();
-      if (!/^[\w-]{20,80}$/.test(g)) return json({ errore: "chiave" }, 0, 400);
+      if (!/^[\w.-]{20,200}$/.test(g)) return json({ errore: "chiave" }, 0, 400);
       const gia = await leggiTrascrizione(env, id);
       if (gia?.righe.length) return json(gia);
       const info = await infoVideo(env, id).catch(() => null);
