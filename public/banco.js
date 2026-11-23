@@ -16,7 +16,7 @@ const P = {
     errFormato: "This does not look like a key: it is one long line that starts with AIza or AQ., with no spaces.", errNonValida: "Google says this key does not work: check you copied all of it.",
     errGiaUsata: "This key is already linked to another Lavagna: everyone must use their own.", errQuota: "Your key has used up today's free requests: try again tomorrow.",
     chiaveOk: "Gemini key: ready", cambiaChiave: "change", togliChiave: "remove", chiaveAltroDispositivo: "On this device your key is missing: paste it again (the same as before is fine).",
-    rispostaGoogle: "Google answered:",
+    rispostaGoogle: "Google answered:", lento: "Gemini is slow right now. I keep going: you can close this, the answer will be ready next time you open it.",
     esporta: "Export", esportaSotto: "Choose what to put in the document. What is not ready yet gets made now (it can take half a minute).", preparo: "Preparing…",
     esportato: "Done: the file is in your downloads.", erroreEsporta: "The export did not work: try again.", pdfTipo: "Study sheet", creatoIl: "Created on",
     tre: "3 key points", mappa: "Mind map", domande: "Review questions", tempo: "Timeline", scaricaMappa: "Download the map (SVG)", ingrandisci: "Tap to enlarge, tap again to close", mostraRisposta: "Show the answer",
@@ -42,7 +42,7 @@ const P = {
     errFormato: "Non sembra una chiave: è una riga lunga che comincia con AIza oppure con AQ., senza spazi.", errNonValida: "Google dice che questa chiave non funziona: controlla di averla copiata tutta.",
     errGiaUsata: "Questa chiave è già collegata a un'altra Lavagna: ognuno deve usare la sua.", errQuota: "La tua chiave ha finito le richieste gratuite di oggi: riprova domani.",
     chiaveOk: "Chiave Gemini: pronta", cambiaChiave: "cambia", togliChiave: "togli", chiaveAltroDispositivo: "Su questo dispositivo la tua chiave non c'è: incollala di nuovo (va bene la stessa di prima).",
-    rispostaGoogle: "Risposta di Google:",
+    rispostaGoogle: "Risposta di Google:", lento: "Gemini in questo momento è lento. Vado avanti: puoi anche chiudere, la risposta sarà pronta la prossima volta che lo apri.",
     esporta: "Esporta", esportaSotto: "Scegli cosa mettere nel documento. Quello che non è ancora pronto si prepara adesso (può volerci mezzo minuto).", preparo: "Preparo…",
     esportato: "Fatto: il file è nei tuoi download.", erroreEsporta: "L'export non è riuscito: riprova.", pdfTipo: "Scheda di studio", creatoIl: "Creata il",
     tre: "Tre punti", mappa: "Mappa mentale", domande: "Domande per ripassare", tempo: "Linea del tempo", scaricaMappa: "Scarica la mappa (SVG)", ingrandisci: "Tocca per ingrandire, tocca di nuovo per chiudere", mostraRisposta: "Mostra la risposta",
@@ -113,6 +113,8 @@ export function banco(dove, v, A) {
     chiudiPannello(); chiudiPannello = () => {};
     aperto = k; pannello.hidden = false; segna();
     pannello.innerHTML = `<p class="sotto bp-attesa">${p(AI.includes(k) ? "attesaAI" : "attesa")}</p>`;
+    // se Gemini è lento lo si dice, invece di far girare la rotellina all'infinito
+    if (AI.includes(k)) setTimeout(() => { const w = pannello.querySelector(".bp-attesa"); if (aperto === k && w && !w.dataset.lento) { w.dataset.lento = "1"; w.insertAdjacentHTML("afterend", `<p class="bp-nota">${p("lento")}</p>`); } }, 45000);
     if (k === "tr" || k === "ap") { A.memo.set("schedaStudio", k); const x = A.pannelloVideo(pannello, { id: v.id, titolo: v.titolo, nomeCanale: v.nomeCanale, durata: v.durata }, A.lettore); x.video?.(v); chiudiPannello = () => x.chiudi(); return; }
     return ({ semplice, tre, mappa, domande, tempo: lineaTempo, simili, contrario, esporta })[k]?.();
   };

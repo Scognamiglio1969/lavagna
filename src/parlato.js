@@ -5,7 +5,7 @@
 //  - quello che c'è già: una volta fatta, la trascrizione serve a tutti.
 
 const FINESTRA = 120; // secondi: la ricerca trova la finestra, poi la riga giusta dentro
-const MODELLI_GEMINI = [["gemini-2.5-flash", true], ["gemini-flash-latest", false], ["gemini-flash-lite-latest", false]]; // [nome, accetta thinkingBudget]
+const MODELLI_GEMINI = [["gemini-3.8-flash", "3"], ["gemini-flash-latest", ""], ["gemini-flash-lite-latest", ""], ["gemini-2.5-flash", "2.5"]]; // [nome, famiglia]: gemini-2.5-flash non c'è più per le chiavi nuove // [nome, accetta thinkingBudget]
 const MAX_GEMINI_GIORNO = 30; // trascrizioni con Gemini per indirizzo al giorno (la chiave è di chi la usa, i nostri limiti no)
 
 const pulisci = (s) => String(s || "").replace(/\s+/g, " ").trim();
@@ -168,7 +168,7 @@ async function chiediGemini(chiave, id, da, a) {
       method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": chiave },
       body: JSON.stringify({
         contents: [{ parts: [video, { text: PROMPT }] }],
-        generationConfig: { temperature: 0, maxOutputTokens: 60000, mediaResolution: "MEDIA_RESOLUTION_LOW", ...(budget ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
+        generationConfig: { temperature: 0, maxOutputTokens: 60000, mediaResolution: "MEDIA_RESOLUTION_LOW", ...(budget === "3" ? { thinkingConfig: { thinkingLevel: "low" } } : budget === "2.5" ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
       }),
     }).catch(() => null);
     if (!r) { ultimo = { stato: 502 }; continue; }

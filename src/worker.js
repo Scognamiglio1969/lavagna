@@ -583,7 +583,7 @@ async function conInfo(env, trovati) {
 
 // SCHOOL · Banco: simili, semplice, contrario, traduci (vedi scoperta.js). Le risposte stanno in cache; l'AI ha un tetto al giorno per persona.
 const MAX_BANCO = { semplice: 120, contrario: 120, traduci: 600, mappa: 120, tre: 120, domande: 120, tempo: 120 }; // con la chiave di ciascuno: tetti larghi, solo contro gli abusi
-async function banco(req, env, pathname) {
+async function banco(req, env, pathname, ctx) {
   const u = new URL(req.url), m = pathname.match(/^\/api\/banco\/(simili|semplice|contrario|traduci|mappa|tre|domande|tempo)\/([\w-]{11})$/);
   if (!m) return json({ errore: "?" }, 0, 404);
   const [, cosa, id] = m;
@@ -598,8 +598,10 @@ async function banco(req, env, pathname) {
   if (pronta) return pronta;
   if (cosa !== "simili" && !(await chiaveDi(env, chi.id, chiaveGemini))) return json({ errore: "chiave" }, 0, 403);
   if (MAX_BANCO[cosa] && !(await limite(env, req, `banco-${cosa}`, MAX_BANCO[cosa]))) return json({ errore: "troppe" }, 0, 429);
-  let d;
-  try {
+  // il lavoro va avanti anche se la pagina chiude la richiesta (si cambia icona, si chiude il pannello):
+  // finisce e resta in cache, così al clic dopo è subito pronto
+  const lavoro = (async () => {
+    let d;
     if (cosa === "simili") {
       const v = await env.DB.prepare("SELECT titolo FROM video WHERE id = ?").bind(id).first();
       const r = await simili(env, id, v?.titolo || "");
@@ -612,7 +614,12 @@ async function banco(req, env, pathname) {
     if (cosa === "tre") d = await tre(env, id, ui, chiaveGemini);
     if (cosa === "domande") d = await domande(env, id, ui, chiaveGemini);
     if (cosa === "tempo") d = await lineaTempo(env, id, ui, chiaveGemini);
-  } catch (e) {
+    if (!d.errore) await caches.default.put(chiave, json(d, cosa === "simili" ? 3600 : MESE)).catch(() => {});
+    return d;
+  })();
+  ctx?.waitUntil(lavoro.catch(() => {}));
+  let d;
+  try { d = await lavoro; } catch (e) {
     const dettaglio = e?.dettaglio || "";
     if (e instanceof ErroreGemini && e.tipo === "quota") return json({ errore: "quota", dettaglio }, 0, 429);
     if (e instanceof ErroreGemini && e.tipo === "nonValida") return json({ errore: "nonValida", dettaglio }, 0, 403);
@@ -620,13 +627,12 @@ async function banco(req, env, pathname) {
     return json({ errore: "ai", dettaglio }, 0, 502);
   }
   if (d.errore) return json(d, 0, d.errore === "trascrizione" || d.errore === "video" ? 404 : 400);
-  const r = json(d, cosa === "simili" ? 3600 : MESE);
-  await caches.default.put(chiave, r.clone()).catch(() => {});
-  return r;
+  return json(d, cosa === "simili" ? 3600 : MESE);
 }
 
 export default {
   async fetch(req, env, ctx) {
+    this.ctx = ctx;
     const { pathname, origin } = new URL(req.url);
     // link condiviso: lavagna…/v/ID → anteprima con titolo e miniatura, poi il video in Lavagna
     const condiviso = pathname.match(/^\/v\/([\w-]{11})\/?$/);
@@ -754,7 +760,7 @@ export default {
     if (pathname === "/api/indice") return json(await statoIndice(env));
     // ——— strumenti didattici proposti dall'AI (mappa, glossario, linea del tempo, domande) dai pezzi di video di una lezione ———
     if (pathname === "/api/strumento" && req.method === "POST") return json(...(await proponiStrumento(req, env)));
-    if (pathname.startsWith("/api/banco/")) return banco(req, env, pathname);
+    if (pathname.startsWith("/api/banco/")) return banco(req, env, pathname, this.ctx);
     // ——— il parlato dei video ———
     if (pathname.startsWith("/api/parlato") || pathname.startsWith("/api/fotogrammi/") || pathname.startsWith("/api/foglio/") || pathname.startsWith("/api/lezione/"))
       return this.parlato(req, env, pathname);

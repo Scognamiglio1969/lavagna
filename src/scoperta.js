@@ -14,32 +14,42 @@ const MESE = 30 * 86400;
 
 // Gemini con la chiave di chi usa SCHOOL (gratuita, sua: Lavagna non mette la propria per nessuno)
 // [modello, accetta il ragionamento spento]: «-latest» vuole ragionare, quindi lì non si chiede di spegnerlo
-const MODELLI_GEMINI = [["gemini-2.5-flash", true], ["gemini-flash-latest", false], ["gemini-flash-lite-latest", false]];
+// I modelli, dal primo da provare. Google ritira i vecchi (gemini-2.5-flash non c'è più per le chiavi nuove)
+// e a volte un modello è sovraccarico (503): allora si riprova una volta, poi si passa al successivo.
+export const MODELLI_GEMINI = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash"];
+// poco ragionamento = risposta più veloce; ogni famiglia lo chiede a modo suo, i «-latest» si lasciano fare
+export const pensiero = (modello) => (/^gemini-3/.test(modello) ? { thinkingConfig: { thinkingLevel: "low" } } : /^gemini-2\.5/.test(modello) ? { thinkingConfig: { thinkingBudget: 0 } } : {});
 export class ErroreGemini extends Error { constructor(tipo, dettaglio = "") { super(tipo); this.tipo = tipo; this.dettaglio = dettaglio; } }
+const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
 async function ai(env, sistema, domanda, max = 900, chiave = "") {
   if (!chiave) throw new ErroreGemini("chiave");
   let ultimo = new ErroreGemini("ai");
-  for (const [modello, spento] of MODELLI_GEMINI) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modello}:generateContent`, {
-      method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": chiave },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sistema }] },
-        contents: [{ role: "user", parts: [{ text: domanda }] }],
-        generationConfig: { responseMimeType: "application/json", maxOutputTokens: Math.max(4096, max * 3), temperature: 0.4, ...(spento ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
-      }),
-    }).catch((e) => { ultimo = new ErroreGemini("ai", String(e).slice(0, 200)); return null; });
-    if (!r) continue;
-    const d = await r.json().catch(() => ({}));
-    const messaggio = String(d.error?.message || "").slice(0, 300);
-    if (!r.ok) {
-      console.log(`Gemini ${modello}: ${r.status} ${messaggio}`); // nei log di Cloudflare, senza la chiave
-      if (/API key|API_KEY|PERMISSION_DENIED/i.test(messaggio) || r.status === 401) throw new ErroreGemini("nonValida", messaggio);
-      ultimo = new ErroreGemini(r.status === 429 ? "quota" : "ai", messaggio);
-      continue;
+  for (const modello of MODELLI_GEMINI) {
+    let conPensiero = true;
+    for (let tentativo = 0; tentativo < 3; tentativo++) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modello}:generateContent`, {
+        method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": chiave },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: sistema }] },
+          contents: [{ role: "user", parts: [{ text: domanda }] }],
+          generationConfig: { responseMimeType: "application/json", maxOutputTokens: Math.max(4096, max * 3), temperature: 0.4, ...(conPensiero ? pensiero(modello) : {}) },
+        }),
+      }).catch((e) => { ultimo = new ErroreGemini("ai", String(e).slice(0, 200)); return null; });
+      if (!r) break;
+      const d = await r.json().catch(() => ({}));
+      const messaggio = String(d.error?.message || "").slice(0, 300);
+      if (!r.ok) {
+        console.log(`Gemini ${modello}: ${r.status} ${messaggio}`); // nei log di Cloudflare, senza la chiave
+        if (/API key|API_KEY|PERMISSION_DENIED/i.test(messaggio) || r.status === 401) throw new ErroreGemini("nonValida", messaggio);
+        ultimo = new ErroreGemini(r.status === 429 ? "quota" : "ai", messaggio);
+        if (r.status === 400 && /think/i.test(messaggio) && conPensiero) { conPensiero = false; continue; } // non accetta quell'impostazione: senza
+        if (r.status === 503 && tentativo === 0) { await pausa(1500); continue; } // sovraccarico: un altro tentativo
+        break; // 404 (modello ritirato), 429, altro: si passa al modello dopo
+      }
+      const testo = (d.candidates?.[0]?.content?.parts || []).filter((x) => !x.thought).map((x) => x.text || "").join("");
+      try { const a = testo.search(/[{[]/), z = Math.max(testo.lastIndexOf("}"), testo.lastIndexOf("]")); return JSON.parse(testo.slice(a, z + 1)); }
+      catch { ultimo = new ErroreGemini("ai", `${modello}: ${d.candidates?.[0]?.finishReason || "risposta non leggibile"}`); console.log(`Gemini ${modello}: risposta non leggibile`, d.candidates?.[0]?.finishReason); break; }
     }
-    const testo = (d.candidates?.[0]?.content?.parts || []).filter((x) => !x.thought).map((x) => x.text || "").join("");
-    try { const a = testo.search(/[{[]/), z = Math.max(testo.lastIndexOf("}"), testo.lastIndexOf("]")); return JSON.parse(testo.slice(a, z + 1)); }
-    catch { ultimo = new ErroreGemini("ai", `${modello}: ${d.candidates?.[0]?.finishReason || "risposta non leggibile"}`); console.log(`Gemini ${modello}: risposta non leggibile`, d.candidates?.[0]?.finishReason); }
   }
   throw ultimo;
 }
