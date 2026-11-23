@@ -14,7 +14,7 @@ export async function raccogli(v, A, scelte, avanza = () => {}) {
   const d = { v, data: new Date() };
   const ai = ["tre", "semplice", "mappa", "domande", "tempo", "contrario", "simili"].filter((k) => scelte.includes(k));
   await Promise.all(ai.map(async (k) => {
-    const r = await fetch(`/api/banco/${k}/${v.id}?ui=${A.ui()}`).catch(() => null);
+    const r = await fetch(`/api/banco/${k}/${v.id}?ui=${A.ui()}`, { headers: { "x-gemini-key": A.memo.get("chiaveGemini", "") } }).catch(() => null);
     d[k] = r?.ok ? await r.json().catch(() => null) : null;
     avanza(k);
   }));

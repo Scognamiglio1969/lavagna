@@ -871,3 +871,14 @@ body.modo-studio .bp-mappa svg rect[fill="#fbf9f3"] { fill: #f3efe4; }
 .bp-scelte { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 14px; }
 .bp-scelte label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
 .bp-esporta { display: flex; flex-wrap: wrap; gap: 10px; }
+/* la porta di SCHOOL: entra con la passkey, poi la chiave Gemini */
+.banco-t { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.banco-stato { margin-left: auto; text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--tenue); }
+.banco-stato .link { font-size: 12px; }
+.bp-porta { max-width: 640px; }
+.bp-porta h3 { text-transform: none; letter-spacing: 0; font-size: 17px; color: var(--inchiostro); margin-bottom: 6px; }
+.bp-passi { margin: 10px 0 14px; padding-left: 22px; line-height: 1.6; } .bp-passi a { color: var(--accento); font-weight: 600; }
+.bp-chiave { display: flex; gap: 8px; flex-wrap: wrap; }
+.bp-chiave input { flex: 1 1 260px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--linea); background: var(--fondo); color: var(--inchiostro); font: 14px ui-monospace, Menlo, monospace; }
+.bp-avviso { padding: 8px 12px; border-radius: 8px; background: color-mix(in srgb, var(--accento) 10%, transparent); border-left: 3px solid var(--accento); }
+.bp-porta .pannello { margin-top: 8px; }

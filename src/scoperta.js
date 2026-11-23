@@ -9,21 +9,33 @@ import { leggiTrascrizione, cercaDomanda, senzaAccenti } from "./parlato.js";
 import { cerca } from "./indice.js";
 import { infoVideo } from "./youtube.js";
 
-const MODELLI = ["@cf/mistralai/mistral-small-3.1-24b-instruct", "@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/openai/gpt-oss-20b"];
 const LINGUE = { it: "Italian", en: "English", es: "Spanish", de: "German", fr: "French" };
 const MESE = 30 * 86400;
 
-async function ai(env, sistema, domanda, max = 900) {
-  let errore;
-  for (const modello of MODELLI) {
-    try {
-      const r = await env.AI.run(modello, { messages: [{ role: "system", content: sistema }, { role: "user", content: domanda }], max_tokens: max });
-      const testo = typeof r.response === "string" ? r.response : r.choices?.[0]?.message?.content || JSON.stringify(r.response ?? "");
-      const a = testo.search(/[{[]/), z = Math.max(testo.lastIndexOf("}"), testo.lastIndexOf("]"));
-      return JSON.parse(testo.slice(a, z + 1));
-    } catch (e) { errore = e; }
+// Gemini con la chiave di chi usa SCHOOL (gratuita, sua: Lavagna non mette la propria per nessuno)
+const MODELLI_GEMINI = ["gemini-2.5-flash", "gemini-flash-latest"];
+export class ErroreGemini extends Error { constructor(tipo) { super(tipo); this.tipo = tipo; } }
+async function ai(env, sistema, domanda, max = 900, chiave = "") {
+  if (!chiave) throw new ErroreGemini("chiave");
+  let ultimo = new ErroreGemini("ai");
+  for (const modello of MODELLI_GEMINI) {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modello}:generateContent`, {
+      method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": chiave },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: sistema }] },
+        contents: [{ role: "user", parts: [{ text: domanda }] }],
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: Math.max(2048, max * 2), temperature: 0.4, thinkingConfig: { thinkingBudget: 0 } },
+      }),
+    }).catch(() => null);
+    if (!r) continue;
+    if (r.status === 400 || r.status === 401 || r.status === 403) { const t = await r.text(); if (/API_KEY|API key|PERMISSION/i.test(t)) throw new ErroreGemini("nonValida"); ultimo = new ErroreGemini("ai"); continue; }
+    if (r.status === 429) { ultimo = new ErroreGemini("quota"); continue; }
+    if (!r.ok) continue;
+    const d = await r.json().catch(() => null);
+    const testo = (d?.candidates?.[0]?.content?.parts || []).map((x) => x.text || "").join("");
+    try { const a = testo.search(/[{[]/), z = Math.max(testo.lastIndexOf("}"), testo.lastIndexOf("]")); return JSON.parse(testo.slice(a, z + 1)); } catch { ultimo = new ErroreGemini("ai"); }
   }
-  throw errore;
+  throw ultimo;
 }
 
 // quante richieste all'AI per persona al giorno (le risposte già in cache non contano)
@@ -85,7 +97,7 @@ export async function simili(env, id, titolo = "", max = 10) {
 }
 
 // ——— 4 · Spiegamelo più semplice ———
-export async function semplice(env, id, ui) {
+export async function semplice(env, id, ui, chiave) {
   const t = await leggiTrascrizione(env, id).catch(() => null);
   if (!t?.righe?.length) return { errore: "trascrizione" };
   const lingua = LINGUE[ui] || "English";
@@ -93,7 +105,7 @@ export async function semplice(env, id, ui) {
 From the transcript of an educational video write:
 {"riassunto": "what the video explains, in 4-6 short simple sentences", "punti": ["the 3-6 key ideas, one short sentence each"], "glossario": [{"termine": "a difficult word used in the video", "spiegazione": "what it means, in one simple sentence"}]}
 Glossary: 5-10 terms. Use only what is in the transcript or basic certain knowledge. Ignore sponsors and calls to subscribe. Write all the values in ${lingua}, even if the transcript is in another language.`;
-  const d = await ai(env, sistema, `Transcript:\n${campione(t.righe)}`, 1400);
+  const d = await ai(env, sistema, `Transcript:\n${campione(t.righe)}`, 1400, chiave);
   const pulito = (x) => String(x || "").replace(/\*\*/g, "").trim();
   return {
     riassunto: pulito(d.riassunto),
@@ -103,14 +115,14 @@ Glossary: 5-10 terms. Use only what is in the transcript or basic certain knowle
 }
 
 // ——— Mappa mentale del video: rami e dettagli, che il browser disegna come la mappa delle lezioni ———
-export async function mappa(env, id, ui) {
+export async function mappa(env, id, ui, chiave) {
   const t = await leggiTrascrizione(env, id).catch(() => null);
   if (!t?.righe?.length) return { errore: "trascrizione" };
   const lingua = LINGUE[ui] || "English";
   const sistema = `Answer ONLY in ${lingua}, with a JSON object and nothing else. From the transcript of an educational video build a MIND MAP of what it explains:
 {"centro": "the topic in 2-5 words", "rami": [{"t": "main idea, 2-6 words", "f": ["detail, 2-7 words", "..."]}]}
 4-7 branches, 2-4 details each, all different, no repetitions. Only what the video explains. Ignore sponsors and calls to subscribe. Write all the values in ${lingua}.`;
-  const d = await ai(env, sistema, `Transcript:\n${campione(t.righe)}`, 1200);
+  const d = await ai(env, sistema, `Transcript:\n${campione(t.righe)}`, 1200, chiave);
   const pulito = (x) => String(x || "").replace(/\*\*/g, "").replace(/^[-*•\d.)\s]+/, "").trim().slice(0, 60);
   const rami = (d.rami || []).map((r) => ({ t: pulito(r.t), f: (r.f || []).map(pulito).filter(Boolean).slice(0, 5) })).filter((r) => r.t).slice(0, 8);
   if (!rami.length) throw new Error("mappa vuota");
@@ -118,14 +130,14 @@ export async function mappa(env, id, ui) {
 }
 
 // ——— Riassunto in tre punti ———
-export async function tre(env, id, ui) {
+export async function tre(env, id, ui, chiave) {
   const t = await leggiTrascrizione(env, id).catch(() => null);
   if (!t?.righe?.length) return { errore: "trascrizione" };
   const lingua = LINGUE[ui] || "English";
   const sistema = `Answer ONLY in ${lingua}, with a JSON object and nothing else. Summarize this educational video in exactly THREE main points, in the order the video presents them:
 {"punti": [{"titolo": "2-5 words", "testo": "one or two clear sentences"}, {...}, {...}]}
 Only what the video says. Ignore sponsors and calls to subscribe. Write all the values in ${lingua}.`;
-  const d = await ai(env, sistema, `Transcript:\n${campione(t.righe)}`, 700);
+  const d = await ai(env, sistema, `Transcript:\n${campione(t.righe)}`, 700, chiave);
   const pulito = (x) => String(x || "").replace(/\*\*/g, "").trim();
   const punti = (d.punti || []).map((p) => (typeof p === "string" ? { titolo: "", testo: pulito(p) } : { titolo: pulito(p.titolo), testo: pulito(p.testo) })).filter((p) => p.testo).slice(0, 3);
   if (!punti.length) throw new Error("vuoto");
@@ -133,21 +145,21 @@ Only what the video says. Ignore sponsors and calls to subscribe. Write all the 
 }
 
 // ——— Domande per ripassare (la risposta si scopre, niente punteggi) ———
-export async function domande(env, id, ui) {
+export async function domande(env, id, ui, chiave) {
   const t = await leggiTrascrizione(env, id).catch(() => null);
   if (!t?.righe?.length) return { errore: "trascrizione" };
   const lingua = LINGUE[ui] || "English";
   const sistema = `Answer ONLY in ${lingua}, with a JSON object and nothing else. Write 6-8 review questions on this educational video, from simple recall to reasoning, each with a short answer taken from the video:
 {"domande": [{"d": "question?", "r": "answer in one or two sentences"}]}
 Only what the video says. Write all the values in ${lingua}.`;
-  const d = await ai(env, sistema, `Transcript:\n${campione(t.righe)}`, 1200);
+  const d = await ai(env, sistema, `Transcript:\n${campione(t.righe)}`, 1200, chiave);
   const lista = (d.domande || []).map((x) => ({ d: String(x.d || "").trim(), r: String(x.r || "").trim() })).filter((x) => x.d && x.r).slice(0, 10);
   if (!lista.length) throw new Error("vuoto");
   return { domande: lista };
 }
 
 // ——— Linea del tempo: i fatti datati del video, con il minuto in cui se ne parla ———
-export async function lineaTempo(env, id, ui) {
+export async function lineaTempo(env, id, ui, chiave) {
   const t = await leggiTrascrizione(env, id).catch(() => null);
   if (!t?.righe?.length) return { errore: "trascrizione" };
   const lingua = LINGUE[ui] || "English";
@@ -156,12 +168,12 @@ export async function lineaTempo(env, id, ui) {
   const sistema = `Answer ONLY in ${lingua}, with a JSON object and nothing else. List the dated events mentioned in this educational video, in chronological order (5-12):
 {"eventi": [{"quando": "the date as said (year, century, period)", "cosa": "what happened, one sentence", "sec": seconds number from the [N] marker where it is mentioned}]}
 If the video has no dates at all, answer {"eventi": []}. Write "cosa" in ${lingua}.`;
-  const d = await ai(env, sistema, `Transcript with [seconds]:\n${conMinuti}`, 1200);
+  const d = await ai(env, sistema, `Transcript with [seconds]:\n${conMinuti}`, 1200, chiave);
   return { eventi: (d.eventi || []).map((e) => ({ quando: String(e.quando || "").trim(), cosa: String(e.cosa || "").trim(), sec: Math.max(0, Number(e.sec) || 0) })).filter((e) => e.quando && e.cosa).slice(0, 14) };
 }
 
 // ——— 8 · Il contrario ———
-export async function contrario(env, id, ui) {
+export async function contrario(env, id, ui, chiave) {
   const v = await infoVideo(env, id).catch(() => null);
   if (!v?.titolo) return { errore: "video" };
   const t = await leggiTrascrizione(env, id).catch(() => null);
@@ -169,7 +181,7 @@ export async function contrario(env, id, ui) {
   const sistema = `Answer ONLY with a JSON object, nothing else. You help students see both sides of a debate, fairly and without taking sides.
 {"tesi": "the main claim or position of this video, in one neutral sentence in ${lingua}", "opposta": "the strongest opposite position held by serious people, in one neutral sentence in ${lingua}", "ricerche": ["3 short search queries (2-5 words) that would find videos defending the OPPOSITE position: 2 in ${linguaVideo}, 1 in English"]}
 If the video has no claim to oppose (it only informs), the "opposta" is the main critique or alternative view on the topic.`;
-  const d = await ai(env, sistema, `Title: ${v.titolo}\nDescription: ${String(v.descrizione || "").slice(0, 800)}\nTranscript (excerpt): ${t?.righe?.length ? campione(t.righe, 5000) : "(none)"}`, 600);
+  const d = await ai(env, sistema, `Title: ${v.titolo}\nDescription: ${String(v.descrizione || "").slice(0, 800)}\nTranscript (excerpt): ${t?.righe?.length ? campione(t.righe, 5000) : "(none)"}`, 600, chiave);
   const gia = new Set([id]), video = [];
   for (const q of (d.ricerche || []).slice(0, 3)) {
     const e = await cerca(env, { q: String(q).slice(0, 80) }).catch(() => null);
@@ -183,7 +195,7 @@ If the video has no claim to oppose (it only informs), the "opposta" is the main
 
 // ——— 6 · Sottotitoli in due lingue: 40 righe per volta ———
 export const BLOCCO = 40;
-export async function traduci(env, id, verso, k) {
+export async function traduci(env, id, verso, k, chiave) {
   const t = await leggiTrascrizione(env, id).catch(() => null);
   if (!t?.righe?.length) return { errore: "trascrizione" };
   const righe = t.righe.slice(k * BLOCCO, (k + 1) * BLOCCO);
@@ -193,7 +205,7 @@ export async function traduci(env, id, verso, k) {
   // le righe numerate: la traduzione di ognuna torna col suo numero, così non slitta mai sotto la frase sbagliata
   const dentro = Object.fromEntries(righe.map(([, x], i) => [String(i + 1), x]));
   const sistema = `Translate each numbered subtitle line into ${lingua}. Answer ONLY with a JSON object with exactly the same keys ("1" to "${righe.length}"), each value the translation of that line alone. Lines are pieces of sentences: translate each piece on its own, do not move words between lines. Keep it natural and short.`;
-  const fuori = await ai(env, sistema, JSON.stringify(dentro), 3000);
+  const fuori = await ai(env, sistema, JSON.stringify(dentro), 3000, chiave);
   return { righe: righe.map((_, i) => String((fuori && !Array.isArray(fuori) ? fuori[String(i + 1)] : Array.isArray(fuori) ? fuori[i] : "") ?? "")) };
 }
 

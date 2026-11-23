@@ -764,7 +764,7 @@ async function vistaVideo(id) {
   // SCHOOL · Banco: tutte le funzioni per studiare, in una riga sotto il video
   bancoV = banco($("#banco"), v, {
     ui: () => ui, memo, avvisa, apriVideo, pannelloVideo, trascrizione, chiediTrascrizione, lettore: () => lettore, schermo: () => $("#schermo"),
-    svgMappa, appuntiDi, fotogramma, caricaScript, categoria: (c) => categorie.find((x) => x.id === c), nomeCat,
+    svgMappa, appuntiDi, fotogramma, caricaScript, io: () => io, caricaIo: async () => { await caricaIo(); disegnaConto(); }, moduloConto: (d, f) => moduloConto(d, "", f), categoria: (c) => categorie.find((x) => x.id === c), nomeCat,
   });
   // cronologia: in cima il più recente, senza doppioni, al massimo 500
   { const { descrizione, ...corto } = v; cronologia = [{ ...corto, visto: Date.now() }, ...cronologia.filter((x) => x.id !== v.id)].slice(0, 500); memo.set("cronologia", cronologia); }
@@ -1282,7 +1282,7 @@ async function entra() {
   await post("/api/conto/entra-fine", { sfida, risposta });
 }
 async function dopoAccesso() { await caricaIo(); disegnaConto(); location.hash = "#/mia"; rotta(); }
-function moduloConto(dove, msgSel) {
+function moduloConto(dove, msgSel, dopo = dopoAccesso) {
   dove.innerHTML = `<p class="sotto">${t("passkeySpiega")}</p>
     <form class="pannello" data-reg><input name="nome" placeholder="${t("tuoNome")}" required minlength="2" maxlength="40" autocomplete="nickname">
       <button class="bott on">${t("creaConto")}</button></form>
@@ -1290,11 +1290,11 @@ function moduloConto(dove, msgSel) {
   const msg = dove.querySelector(".msg");
   dove.querySelector("[data-reg]").onsubmit = async (e) => {
     e.preventDefault(); msg.textContent = "";
-    try { await registrati(new FormData(e.target).get("nome")); await dopoAccesso(); } catch (err) { msg.textContent = err.message === t("passkeyNo") ? err.message : erroreConto(err); }
+    try { await registrati(new FormData(e.target).get("nome")); await dopo(); } catch (err) { msg.textContent = err.message === t("passkeyNo") ? err.message : erroreConto(err); }
   };
   dove.querySelector("[data-entra]").onclick = async () => {
     msg.textContent = "";
-    try { await entra(); await dopoAccesso(); } catch (err) { msg.textContent = err.message === t("passkeyNo") ? err.message : erroreConto(err); }
+    try { await entra(); await dopo(); } catch (err) { msg.textContent = err.message === t("passkeyNo") ? err.message : erroreConto(err); }
   };
 }
 function disegnaConto() {

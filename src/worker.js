@@ -1,12 +1,12 @@
 import { CATEGORIE } from "./canali.js";
 import { PROPOSTE } from "./proposte.js";
-import { gestisciConto, utenteDa } from "./conto.js";
+import { gestisciConto, utenteDa, chiaveDi, haChiave } from "./conto.js";
 
 const LINGUE = ["it", "en", "es", "de", "fr"]; // lingue dei canali
 const PAESE = { it: "IT", es: "ES", de: "DE", fr: "FR" };
 import { cercaSuYouTube, infoVideo, paginaCondivisa } from "./youtube.js";
 import { leggiTrascrizione, salvaTrascrizione, segnaRichiesta, cercaParlato, infoFotogrammi, foglio, trascriviConGemini } from "./parlato.js";
-import { simili, semplice, contrario, traduci, mappa, tre, domande, lineaTempo, limite, MESE } from "./scoperta.js";
+import { simili, semplice, contrario, traduci, mappa, tre, domande, lineaTempo, limite, MESE, ErroreGemini } from "./scoperta.js";
 import { lavoroPeriodico, salvaVideo, cerca, statoIndice, videoDiCategoria, videoDiCanale, togliCanale, spostaVideo, home } from "./indice.js";
 
 const CACHE_SECONDI = 1800; // ogni feed si rilegge al massimo ogni mezz'ora
@@ -358,7 +358,7 @@ async function laMia(req, env, pathname) {
   const presentiPerMe = async () => new Set([...(await elenco(env)).flatMap((c) => c.canali.map((x) => x.id)), ...(await miei()).canali.map((x) => x.id)]);
   const quanti = async (tabella) => (await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${tabella} WHERE utente = ?`).bind(u.id).first()).n;
 
-  if (azione === "/" && req.method === "GET") return json({ nome: u.nome, ...(await miei()) });
+  if (azione === "/" && req.method === "GET") return json({ nome: u.nome, gemini: await haChiave(env, u.id), ...(await miei()) });
 
   if (azione === "/risolvi") {
     const c = await risolvi(String(corpo.testo || "")).catch(() => null);
@@ -582,16 +582,21 @@ async function conInfo(env, trovati) {
 }
 
 // SCHOOL · Banco: simili, semplice, contrario, traduci (vedi scoperta.js). Le risposte stanno in cache; l'AI ha un tetto al giorno per persona.
-const MAX_BANCO = { semplice: 30, contrario: 30, traduci: 300, mappa: 30, tre: 30, domande: 30, tempo: 30 };
+const MAX_BANCO = { semplice: 120, contrario: 120, traduci: 600, mappa: 120, tre: 120, domande: 120, tempo: 120 }; // con la chiave di ciascuno: tetti larghi, solo contro gli abusi
 async function banco(req, env, pathname) {
   const u = new URL(req.url), m = pathname.match(/^\/api\/banco\/(simili|semplice|contrario|traduci|mappa|tre|domande|tempo)\/([\w-]{11})$/);
   if (!m) return json({ errore: "?" }, 0, 404);
   const [, cosa, id] = m;
   const ui = LINGUE.includes(u.searchParams.get("ui")) ? u.searchParams.get("ui") : "en";
   const verso = LINGUE.includes(u.searchParams.get("l")) ? u.searchParams.get("l") : "en", k = Math.max(0, Math.min(2000, Number(u.searchParams.get("k")) || 0));
+  // SCHOOL è per chi ha la sua Lavagna; le funzioni AI vogliono anche la sua chiave Gemini
+  const chi = await utenteDa(req, env);
+  if (!chi) return json({ errore: "accesso" }, 0, 401);
+  const chiaveGemini = (req.headers.get("x-gemini-key") || "").trim();
   const chiave = new Request(`https://cache.lavagna/banco5/${cosa}/${id}/${cosa === "traduci" ? `${verso}/${k}` : cosa === "simili" ? "" : ui}`);
   const pronta = await caches.default.match(chiave);
   if (pronta) return pronta;
+  if (cosa !== "simili" && !(await chiaveDi(env, chi.id, chiaveGemini))) return json({ errore: "chiave" }, 0, 403);
   if (MAX_BANCO[cosa] && !(await limite(env, req, `banco-${cosa}`, MAX_BANCO[cosa]))) return json({ errore: "troppe" }, 0, 429);
   let d;
   try {
@@ -600,14 +605,18 @@ async function banco(req, env, pathname) {
       const r = await simili(env, id, v?.titolo || "");
       d = { parole: r.parole, momenti: await conInfo(env, r.momenti) };
     }
-    if (cosa === "semplice") d = await semplice(env, id, ui);
-    if (cosa === "contrario") d = await contrario(env, id, ui);
-    if (cosa === "traduci") d = await traduci(env, id, verso, k);
-    if (cosa === "mappa") d = await mappa(env, id, ui);
-    if (cosa === "tre") d = await tre(env, id, ui);
-    if (cosa === "domande") d = await domande(env, id, ui);
-    if (cosa === "tempo") d = await lineaTempo(env, id, ui);
-  } catch { return json({ errore: "ai" }, 0, 502); }
+    if (cosa === "semplice") d = await semplice(env, id, ui, chiaveGemini);
+    if (cosa === "contrario") d = await contrario(env, id, ui, chiaveGemini);
+    if (cosa === "traduci") d = await traduci(env, id, verso, k, chiaveGemini);
+    if (cosa === "mappa") d = await mappa(env, id, ui, chiaveGemini);
+    if (cosa === "tre") d = await tre(env, id, ui, chiaveGemini);
+    if (cosa === "domande") d = await domande(env, id, ui, chiaveGemini);
+    if (cosa === "tempo") d = await lineaTempo(env, id, ui, chiaveGemini);
+  } catch (e) {
+    if (e instanceof ErroreGemini && e.tipo === "quota") return json({ errore: "quota" }, 0, 429);
+    if (e instanceof ErroreGemini && e.tipo === "nonValida") return json({ errore: "nonValida" }, 0, 403);
+    return json({ errore: "ai" }, 0, 502);
+  }
   if (d.errore) return json(d, 0, d.errore === "trascrizione" || d.errore === "video" ? 404 : 400);
   const r = json(d, cosa === "simili" ? 3600 : MESE);
   await caches.default.put(chiave, r.clone()).catch(() => {});

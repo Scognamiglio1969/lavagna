@@ -8,6 +8,14 @@ const tempo = (x) => { x = Math.max(0, Math.floor(Number(x) || 0)); const h = Ma
 
 const P = {
   en: {
+    entraT: "SCHOOL is for those who have their own Lavagna", entraSotto: "Create it here in one tap, then add your free Gemini key and everything works.",
+    chiaveT: "Your Gemini key (free)", chiaveSotto: "SCHOOL's tools use Gemini, Google's AI. Everyone uses their own key: it is free and takes a minute.",
+    passi: ["Open <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\" rel=\"noopener\">Google AI Studio ↗</a> and sign in with your Google account.", "Press «Create API key».", "If it asks, choose «Create API key in new project».", "Copy the key (one line that starts with «AIza») and paste it here."],
+    incollaChiave: "Paste your key (AIza…)", salvaChiave: "Save and continue", verifico: "Checking the key with Google…",
+    chiaveNote: "No credit card: Google's free plan is enough to study every day. The key stays only in this browser: Lavagna does not keep it, only a fingerprint to check that each key is used by one person only. On the free plan Google may use what you send to improve its services. You can remove it whenever you like.",
+    errFormato: "This does not look like a key: it starts with AIza and is about forty characters long.", errNonValida: "Google says this key does not work: check you copied all of it.",
+    errGiaUsata: "This key is already linked to another Lavagna: everyone must use their own.", errQuota: "Your key has used up today's free requests: try again tomorrow.",
+    chiaveOk: "Gemini key: ready", cambiaChiave: "change", togliChiave: "remove", chiaveAltroDispositivo: "On this device your key is missing: paste it again (the same as before is fine).",
     esporta: "Export", esportaSotto: "Choose what to put in the document. What is not ready yet gets made now (it can take half a minute).", preparo: "Preparing…",
     esportato: "Done: the file is in your downloads.", erroreEsporta: "The export did not work: try again.", pdfTipo: "Study sheet", creatoIl: "Created on",
     tre: "3 key points", mappa: "Mind map", domande: "Review questions", tempo: "Timeline", scaricaMappa: "Download the map (SVG)", ingrandisci: "Tap to enlarge, tap again to close", mostraRisposta: "Show the answer",
@@ -25,6 +33,14 @@ const P = {
     percorsoVai: (n) => `Open the path of «${n}» →`,
   },
   it: {
+    entraT: "SCHOOL è per chi ha la sua Lavagna", entraSotto: "La crei qui con un tocco, poi aggiungi la tua chiave Gemini gratuita e funziona tutto.",
+    chiaveT: "La tua chiave Gemini (gratuita)", chiaveSotto: "Gli strumenti di SCHOOL usano Gemini, l'intelligenza artificiale di Google. Ognuno usa la sua chiave: è gratuita e si fa in un minuto.",
+    passi: ["Apri <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\" rel=\"noopener\">Google AI Studio ↗</a> ed entra con il tuo account Google.", "Premi «Create API key» (Crea chiave API).", "Se te lo chiede, scegli «Create API key in new project» (in un nuovo progetto).", "Copia la chiave (una riga che comincia con «AIza») e incollala qui."],
+    incollaChiave: "Incolla la tua chiave (AIza…)", salvaChiave: "Salva e continua", verifico: "Controllo la chiave con Google…",
+    chiaveNote: "Niente carta di credito: il piano gratuito di Google basta per studiare ogni giorno. La chiave resta solo in questo browser: Lavagna non la conserva, tiene solo un'impronta per controllare che ogni chiave sia usata da una sola persona. Con il piano gratuito Google può usare i testi inviati per migliorare i suoi servizi. Puoi toglierla quando vuoi.",
+    errFormato: "Non sembra una chiave: comincia con AIza ed è lunga una quarantina di caratteri.", errNonValida: "Google dice che questa chiave non funziona: controlla di averla copiata tutta.",
+    errGiaUsata: "Questa chiave è già collegata a un'altra Lavagna: ognuno deve usare la sua.", errQuota: "La tua chiave ha finito le richieste gratuite di oggi: riprova domani.",
+    chiaveOk: "Chiave Gemini: pronta", cambiaChiave: "cambia", togliChiave: "togli", chiaveAltroDispositivo: "Su questo dispositivo la tua chiave non c'è: incollala di nuovo (va bene la stessa di prima).",
     esporta: "Esporta", esportaSotto: "Scegli cosa mettere nel documento. Quello che non è ancora pronto si prepara adesso (può volerci mezzo minuto).", preparo: "Preparo…",
     esportato: "Fatto: il file è nei tuoi download.", erroreEsporta: "L'export non è riuscito: riprova.", pdfTipo: "Scheda di studio", creatoIl: "Creata il",
     tre: "Tre punti", mappa: "Mappa mentale", domande: "Domande per ripassare", tempo: "Linea del tempo", scaricaMappa: "Scarica la mappa (SVG)", ingrandisci: "Tocca per ingrandire, tocca di nuovo per chiudere", mostraRisposta: "Mostra la risposta",
@@ -98,13 +114,66 @@ export function banco(dove, v, A) {
     if (k === "tr" || k === "ap") { A.memo.set("schedaStudio", k); const x = A.pannelloVideo(pannello, { id: v.id, titolo: v.titolo, nomeCanale: v.nomeCanale, durata: v.durata }, A.lettore); x.video?.(v); chiudiPannello = () => x.chiudi(); return; }
     return ({ semplice, tre, mappa, domande, tempo: lineaTempo, simili, contrario, esporta })[k]?.();
   };
+  // la porta di SCHOOL: prima la propria Lavagna (passkey), poi la propria chiave Gemini per gli strumenti con l'AI
+  const CON_AI = [...AI, "esporta"];
+  const chiaveQui = () => A.memo.get("chiaveGemini", "");
+  const pronta = () => !!(A.io()?.gemini && chiaveQui());
+  function porta(k) {
+    if (!A.io()) { mostraEntra(k); return false; }
+    if (CON_AI.includes(k) && !pronta()) { mostraChiave(k); return false; }
+    return true;
+  }
+  function apriPannello(k) { chiudiPannello(); chiudiPannello = () => {}; aperto = k; pannello.hidden = false; segna(); }
+  function mostraEntra(k) {
+    apriPannello(k);
+    pannello.innerHTML = `<div class="bp-porta"><h3>🔑 ${p("entraT")}</h3><p>${p("entraSotto")}</p><div id="bpConto"></div></div>`;
+    A.moduloConto(pannello.querySelector("#bpConto"), async () => { await A.caricaIo(); disegnaStato(); aperto = null; if (porta(k)) apri(k); });
+  }
+  function mostraChiave(k, avviso = "") {
+    apriPannello(k);
+    const altrove = A.io()?.gemini && !chiaveQui();
+    pannello.innerHTML = `<div class="bp-porta"><h3>✦ ${p("chiaveT")}</h3><p>${p("chiaveSotto")}</p>
+      ${altrove || avviso ? `<p class="bp-avviso">${avviso || p("chiaveAltroDispositivo")}</p>` : ""}
+      <ol class="bp-passi">${p("passi").map((x) => `<li>${x}</li>`).join("")}</ol>
+      <form class="bp-chiave"><input type="password" autocomplete="off" spellcheck="false" placeholder="${p("incollaChiave")}" aria-label="${p("incollaChiave")}" required>
+        <button class="bott on">${p("salvaChiave")}</button></form><p class="msg" role="status"></p>
+      <p class="bp-nota">${p("chiaveNote")}</p></div>`;
+    const f = pannello.querySelector(".bp-chiave"), msg = pannello.querySelector(".msg");
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const chiave = f.querySelector("input").value.trim();
+      if (!/^[\w-]{30,60}$/.test(chiave)) { msg.textContent = p("errFormato"); return; }
+      msg.textContent = p("verifico"); f.querySelector("button").disabled = true;
+      const r = await fetch("/api/conto/gemini", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chiave }) }).catch(() => null);
+      const d = await r?.json().catch(() => ({})) || {};
+      f.querySelector("button").disabled = false;
+      if (!r?.ok) { msg.textContent = { formato: p("errFormato"), nonValida: p("errNonValida"), giaUsata: p("errGiaUsata") }[d.errore] || p("erroreAI"); return; }
+      A.memo.set("chiaveGemini", chiave); if (A.io()) A.io().gemini = true;
+      disegnaStato(); aperto = null; apri(k);
+    };
+  }
+  // in alto a destra nel Desk: lo stato della chiave, da cambiare o togliere
+  function disegnaStato() {
+    const st = dove.querySelector(".banco-stato"); if (!st) return;
+    st.innerHTML = pronta() ? `✓ ${p("chiaveOk")} · <button class="link" data-c="cambia">${p("cambiaChiave")}</button> · <button class="link" data-c="togli">${p("togliChiave")}</button>` : "";
+  }
+  dove.querySelector(".banco-t").insertAdjacentHTML("beforeend", `<span class="banco-stato"></span>`);
+  dove.querySelector(".banco-stato").onclick = async (e) => {
+    const c = e.target.closest("[data-c]")?.dataset.c; if (!c) return;
+    if (c === "cambia") return mostraChiave(aperto && CON_AI.includes(aperto) ? aperto : "semplice");
+    await fetch("/api/conto/gemini-togli", { method: "POST" }).catch(() => {});
+    A.memo.set("chiaveGemini", ""); if (A.io()) A.io().gemini = false; disegnaStato();
+    if (aperto && CON_AI.includes(aperto)) mostraChiave(aperto);
+  };
+  disegnaStato();
   dove.querySelector(".banco-riga").onclick = (e) => {
     const b = e.target.closest(".bi"); if (!b) return;
     if (b.dataset.k === "studio") return studio(!inStudio());
-    apri(b.dataset.k);
+    if (aperto === b.dataset.k) return apri(b.dataset.k);
+    if (porta(b.dataset.k)) apri(b.dataset.k);
   };
   const chiedi = async (cosa) => {
-    const r = await fetch(`/api/banco/${cosa}/${v.id}?ui=${A.ui()}`).catch(() => null);
+    const r = await fetch(`/api/banco/${cosa}/${v.id}?ui=${A.ui()}`, { headers: { "x-gemini-key": chiaveQui() } }).catch(() => null);
     const d = await r?.json().catch(() => ({})) || {};
     return { ok: !!r?.ok, stato: r?.status || 0, d };
   };
@@ -114,7 +183,9 @@ export function banco(dove, v, A) {
     if (aperto !== cosa && !(cosa === "tempo" && aperto === "tempo")) return;
     if (ok) return disegna(d);
     if (d.errore === "trascrizione") { const t = await A.trascrizione(v.id); return A.chiediTrascrizione(pannello, v.id, t.fonte, () => { if (aperto === cosa) apri(cosa, true); }); }
-    pannello.innerHTML = `<p class="sotto">${stato === 429 ? p("troppe") : p("erroreAI")}</p>`;
+    if (stato === 401) return mostraEntra(cosa);
+    if (d.errore === "chiave" || d.errore === "nonValida") return mostraChiave(cosa, d.errore === "nonValida" ? p("errNonValida") : "");
+    pannello.innerHTML = `<p class="sotto">${d.errore === "quota" ? p("errQuota") : stato === 429 ? p("troppe") : p("erroreAI")}</p>`;
   }
   const nota = () => `<p class="bp-nota">${p("controlla")}</p>`;
   const vai = (sec) => { try { A.lettore()?.vai?.(sec); A.lettore()?.play?.(); } catch {} };
@@ -158,6 +229,7 @@ export function banco(dove, v, A) {
   async function simili() {
     const { ok, stato, d } = await chiedi("simili");
     if (aperto !== "simili") return;
+    if (stato === 401) return mostraEntra("simili");
     if (!ok) { pannello.innerHTML = `<p class="sotto">${stato === 429 ? p("troppe") : p("erroreAI")}</p>`; return; }
     if (!d.momenti?.length) { pannello.innerHTML = `<p class="sotto">${p("nessunSimile")}</p>`; return; }
     const re = d.parole?.length ? new RegExp(`(${d.parole.map((x) => x.slice(0, Math.max(4, x.length - 1)).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi") : null;

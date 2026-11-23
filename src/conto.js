@@ -8,7 +8,11 @@ import { isoBase64URL } from "@simplewebauthn/server/helpers";
 
 const COOKIE = "lavagna_sessione";
 const DURATA_GIORNI = 180;
-const MAX_REGISTRAZIONI_IP = 10; // al giorno, per indirizzo: basta per una famiglia, ferma i robot
+// freni contro chi si registra tante volte (nessuno basta da solo, insieme sì):
+// · per indirizzo: poche al giorno e al mese · per dispositivo: un segno nel browser, al massimo 2 Lavagne
+// · per SCHOOL: ogni Lavagna deve avere la sua chiave Gemini, e una chiave vale per una sola Lavagna
+const MAX_REGISTRAZIONI_IP = 3, MAX_REGISTRAZIONI_IP_MESE = 6, MAX_PER_DISPOSITIVO = 2;
+const DISPOSITIVO = "lavagna_dispositivo";
 
 const json = (dati, stato = 200, intestazioni = {}) =>
   new Response(JSON.stringify(dati), { status: stato, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...intestazioni } });
@@ -19,6 +23,14 @@ async function impronta(testo) {
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 const cookieDi = (req) => (req.headers.get("cookie") || "").split(/;\s*/).find((c) => c.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1) || "";
+const dispositivoDi = (req) => (req.headers.get("cookie") || "").split(/;\s*/).find((c) => c.startsWith(`${DISPOSITIVO}=`))?.slice(DISPOSITIVO.length + 1) || "";
+async function contiRegistrazioni(env, req) {
+  const ip = req.headers.get("cf-connecting-ip") || "locale", d = ora();
+  const disp = dispositivoDi(req);
+  const chiavi = { giorno: `reg:${ip}:${d.slice(0, 10)}`, mese: `regm:${ip}:${d.slice(0, 7)}`, disp: disp ? `disp:${await impronta(disp)}` : "" };
+  const [g, m, x] = await Promise.all([env.LAVAGNA.get(chiavi.giorno), env.LAVAGNA.get(chiavi.mese), chiavi.disp ? env.LAVAGNA.get(chiavi.disp) : null]);
+  return { chiavi, giorno: Number(g) || 0, mese: Number(m) || 0, disp: Number(x) || 0, troppe: (Number(g) || 0) >= MAX_REGISTRAZIONI_IP || (Number(m) || 0) >= MAX_REGISTRAZIONI_IP_MESE || (Number(x) || 0) >= MAX_PER_DISPOSITIVO };
+}
 const cookieSessione = (token, secondi) =>
   `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${secondi}`;
 
@@ -67,10 +79,7 @@ export async function gestisciConto(req, env, pathname) {
   if (azione === "/registra-inizio") {
     const nome = String(corpo.nome || "").trim().replace(/\s+/g, " ").slice(0, 40);
     if (nome.length < 2) return json({ errore: "nome" }, 400);
-    const ip = req.headers.get("cf-connecting-ip") || "locale";
-    const chiave = `reg:${ip}:${ora().slice(0, 10)}`;
-    const n = Number(await env.LAVAGNA.get(chiave)) || 0;
-    if (n >= MAX_REGISTRAZIONI_IP) return json({ errore: "troppe" }, 429);
+    if ((await contiRegistrazioni(env, req)).troppe) return json({ errore: "troppe" }, 429);
     const idUtente = casuale(16);
     const opzioni = await generateRegistrationOptions({
       rpName: "Lavagna", rpID, userName: nome, userDisplayName: nome,
@@ -89,15 +98,24 @@ export async function gestisciConto(req, env, pathname) {
     } catch { return json({ errore: "passkey" }, 400); }
     if (!esito.verified) return json({ errore: "passkey" }, 400);
     const c = esito.registrationInfo.credential;
-    const ip = req.headers.get("cf-connecting-ip") || "locale";
-    const chiave = `reg:${ip}:${ora().slice(0, 10)}`;
-    await env.LAVAGNA.put(chiave, String((Number(await env.LAVAGNA.get(chiave)) || 0) + 1), { expirationTtl: 86400 });
+    const r = await contiRegistrazioni(env, req);
+    if (r.troppe) return json({ errore: "troppe" }, 429);
+    // il segno del dispositivo: resta due anni nel browser (non dice niente di chi sei, conta solo le Lavagne create qui)
+    const disp = dispositivoDi(req) || casuale(18);
+    await Promise.all([
+      env.LAVAGNA.put(r.chiavi.giorno, String(r.giorno + 1), { expirationTtl: 86400 }),
+      env.LAVAGNA.put(r.chiavi.mese, String(r.mese + 1), { expirationTtl: 31 * 86400 }),
+      env.LAVAGNA.put(`disp:${await impronta(disp)}`, String(r.disp + 1)),
+    ]);
     await env.DB.batch([
       env.DB.prepare("INSERT INTO utenti (id, nome, creato) VALUES (?, ?, ?)").bind(s.idUtente, s.nome, ora()),
       env.DB.prepare("INSERT INTO passkey (id, utente, chiave, contatore, trasporti, creato) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(c.id, s.idUtente, isoBase64URL.fromBuffer(c.publicKey), c.counter || 0, JSON.stringify(c.transports || []), ora()),
     ]);
-    return json({ nome: s.nome }, 200, { "set-cookie": await apriSessione(env, s.idUtente) });
+    const h = new Headers({ "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    h.append("set-cookie", await apriSessione(env, s.idUtente));
+    h.append("set-cookie", `${DISPOSITIVO}=${disp}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${2 * 365 * 86400}`);
+    return new Response(JSON.stringify({ nome: s.nome }), { status: 200, headers: h });
   }
 
   // ——— accesso: la passkey già salvata sul dispositivo ———
@@ -124,6 +142,31 @@ export async function gestisciConto(req, env, pathname) {
     return json({ nome: u?.nome || "" }, 200, { "set-cookie": await apriSessione(env, p.utente) });
   }
 
+  // ——— SCHOOL: la chiave Gemini di chi usa Lavagna (resta nel suo browser; qui solo l'impronta) ———
+  if (azione === "/gemini" && req.method === "POST") {
+    const u = await utenteDa(req, env);
+    if (!u) return json({ errore: "accesso" }, 401);
+    const chiave = String(corpo.chiave || "").trim();
+    if (!/^[\w-]{30,60}$/.test(chiave)) return json({ errore: "formato" }, 400);
+    // la chiave funziona? (l'elenco dei modelli non consuma la quota)
+    const prova = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", { headers: { "x-goog-api-key": chiave } }).catch(() => null);
+    if (!prova?.ok) return json({ errore: "nonValida" }, 400);
+    const imp = await impronta(`gemini:${chiave}`);
+    const gia = await env.DB.prepare("SELECT utente FROM chiavi_gemini WHERE impronta = ?").bind(imp).first();
+    if (gia && gia.utente !== u.id) return json({ errore: "giaUsata" }, 409);
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM chiavi_gemini WHERE utente = ?").bind(u.id),
+      env.DB.prepare("INSERT INTO chiavi_gemini (impronta, utente, creato) VALUES (?, ?, ?)").bind(imp, u.id, ora()),
+    ]);
+    return json({ ok: true });
+  }
+  if (azione === "/gemini-togli" && req.method === "POST") {
+    const u = await utenteDa(req, env);
+    if (!u) return json({ errore: "accesso" }, 401);
+    await env.DB.prepare("DELETE FROM chiavi_gemini WHERE utente = ?").bind(u.id).run();
+    return json({ ok: true });
+  }
+
   if (azione === "/esci") {
     const token = cookieDi(req);
     if (token) await env.DB.prepare("DELETE FROM sessioni WHERE token = ?").bind(await impronta(token)).run();
@@ -134,10 +177,20 @@ export async function gestisciConto(req, env, pathname) {
   if (azione === "/cancella") {
     const u = await utenteDa(req, env);
     if (!u) return json({ errore: "accesso" }, 401);
-    await env.DB.batch(["miei_canali", "miei_argomenti", "miei_video", "quaderno", "sessioni", "passkey"].map((t) =>
+    await env.DB.batch(["miei_canali", "miei_argomenti", "miei_video", "quaderno", "chiavi_gemini", "sessioni", "passkey"].map((t) =>
       env.DB.prepare(`DELETE FROM ${t} WHERE utente = ?`).bind(u.id)).concat(env.DB.prepare("DELETE FROM utenti WHERE id = ?").bind(u.id)));
     return json({ ok: true }, 200, { "set-cookie": cookieSessione("", 0) });
   }
 
   return json({ errore: "azione" }, 404);
+}
+
+// la chiave mandata con la richiesta è proprio quella collegata a questa Lavagna?
+export async function chiaveDi(env, utente, chiave) {
+  if (!utente || !/^[\w-]{30,60}$/.test(chiave || "")) return false;
+  const r = await env.DB.prepare("SELECT utente FROM chiavi_gemini WHERE impronta = ?").bind(await impronta(`gemini:${chiave}`)).first();
+  return r?.utente === utente;
+}
+export async function haChiave(env, utente) {
+  return !!(await env.DB.prepare("SELECT 1 AS x FROM chiavi_gemini WHERE utente = ?").bind(utente).first().catch(() => null));
 }
