@@ -584,6 +584,14 @@ async function conInfo(env, trovati) {
 // SCHOOL · Banco: simili, semplice, contrario, traduci (vedi scoperta.js). Le risposte stanno in cache; l'AI ha un tetto al giorno per persona.
 const MAX_BANCO = { semplice: 120, contrario: 120, traduci: 600, mappa: 120, tre: 120, domande: 120, tempo: 120 }; // con la chiave di ciascuno: tetti larghi, solo contro gli abusi
 async function banco(req, env, pathname, ctx) {
+  // quali strumenti sono già pronti per questo video (risposte in cache): servono le spunte sulle icone del Desk
+  const pr = pathname.match(/^\/api\/banco\/pronti\/([\w-]{11})$/);
+  if (pr) {
+    const ui = LINGUE.includes(new URL(req.url).searchParams.get("ui")) ? new URL(req.url).searchParams.get("ui") : "en";
+    const tutti = ["semplice", "tre", "mappa", "domande", "tempo", "contrario", "simili"];
+    const pronti = (await Promise.all(tutti.map(async (c) => ((await caches.default.match(new Request(`https://cache.lavagna/banco5/${c}/${pr[1]}/${c === "simili" ? "" : ui}`))) ? c : null)))).filter(Boolean);
+    return json({ pronti }, 0);
+  }
   const u = new URL(req.url), m = pathname.match(/^\/api\/banco\/(simili|semplice|contrario|traduci|mappa|tre|domande|tempo)\/([\w-]{11})$/);
   if (!m) return json({ errore: "?" }, 0, 404);
   const [, cosa, id] = m;
@@ -761,6 +769,22 @@ export default {
     // ——— strumenti didattici proposti dall'AI (mappa, glossario, linea del tempo, domande) dai pezzi di video di una lezione ———
     if (pathname === "/api/strumento" && req.method === "POST") return json(...(await proponiStrumento(req, env)));
     if (pathname.startsWith("/api/banco/")) return banco(req, env, pathname, this.ctx);
+    // l'immagine grande di un video YouTube, dal nostro indirizzo: serve alla copertina dei PDF e dei Word
+    const cop = pathname.match(/^\/api\/copertina\/([\w-]{11})$/);
+    if (cop) {
+      const chiave = new Request(`https://cache.lavagna/copertina/${cop[1]}`);
+      const pronta = await caches.default.match(chiave);
+      if (pronta) return pronta;
+      for (const q of ["maxresdefault", "sddefault", "hqdefault"]) {
+        const r = await fetch(`https://i.ytimg.com/vi/${cop[1]}/${q}.jpg`).catch(() => null);
+        if (r?.ok && Number(r.headers.get("content-length") || 9999) > 2000) {
+          const img = new Response(r.body, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=604800" } });
+          await caches.default.put(chiave, img.clone()).catch(() => {});
+          return img;
+        }
+      }
+      return json({ errore: "immagine" }, 0, 404);
+    }
     // ——— il parlato dei video ———
     if (pathname.startsWith("/api/parlato") || pathname.startsWith("/api/fotogrammi/") || pathname.startsWith("/api/foglio/") || pathname.startsWith("/api/lezione/"))
       return this.parlato(req, env, pathname);

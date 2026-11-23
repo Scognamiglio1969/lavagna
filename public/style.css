@@ -882,3 +882,7 @@ body.modo-studio .bp-mappa svg rect[fill="#fbf9f3"] { fill: #f3efe4; }
 .bp-chiave input { flex: 1 1 260px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--linea); background: var(--fondo); color: var(--inchiostro); font: 14px ui-monospace, Menlo, monospace; }
 .bp-avviso { padding: 8px 12px; border-radius: 8px; background: color-mix(in srgb, var(--accento) 10%, transparent); border-left: 3px solid var(--accento); }
 .bp-porta .pannello { margin-top: 8px; }
+/* ✓ sulle icone degli strumenti già pronti per questo video */
+.bi { position: relative; }
+.bi-fatto { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: #2fa36b; color: #fff; font: 700 12px/1 Inter, sans-serif; box-shadow: 0 1px 3px rgb(0 0 0 / .2); }

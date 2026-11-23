@@ -16,7 +16,7 @@ const P = {
     errFormato: "This does not look like a key: it is one long line that starts with AIza or AQ., with no spaces.", errNonValida: "Google says this key does not work: check you copied all of it.",
     errGiaUsata: "This key is already linked to another Lavagna: everyone must use their own.", errQuota: "Your key has used up today's free requests: try again tomorrow.",
     chiaveOk: "Gemini key: ready", cambiaChiave: "change", togliChiave: "remove", chiaveAltroDispositivo: "On this device your key is missing: paste it again (the same as before is fine).",
-    aspetto: "Still waiting for:", esportatoSenza: (x) => `Done, the file is in your downloads, but without: ${x} (Gemini did not answer in time; try again later and they will be ready).`,
+    giaPronto: "Already made for this video", schema: "outline", aspetto: "Still waiting for:", esportatoSenza: (x) => `Done, the file is in your downloads, but without: ${x} (Gemini did not answer in time; try again later and they will be ready).`,
     rispostaGoogle: "Google answered:", lento: "Gemini is slow right now. I keep going: you can close this, the answer will be ready next time you open it.",
     esporta: "Export", esportaSotto: "Choose what to put in the document. What is not ready yet gets made now (it can take half a minute).", preparo: "Preparing…",
     esportato: "Done: the file is in your downloads.", erroreEsporta: "The export did not work: try again.", pdfTipo: "Study sheet", creatoIl: "Created on",
@@ -43,7 +43,7 @@ const P = {
     errFormato: "Non sembra una chiave: è una riga lunga che comincia con AIza oppure con AQ., senza spazi.", errNonValida: "Google dice che questa chiave non funziona: controlla di averla copiata tutta.",
     errGiaUsata: "Questa chiave è già collegata a un'altra Lavagna: ognuno deve usare la sua.", errQuota: "La tua chiave ha finito le richieste gratuite di oggi: riprova domani.",
     chiaveOk: "Chiave Gemini: pronta", cambiaChiave: "cambia", togliChiave: "togli", chiaveAltroDispositivo: "Su questo dispositivo la tua chiave non c'è: incollala di nuovo (va bene la stessa di prima).",
-    aspetto: "Aspetto ancora:", esportatoSenza: (x) => `Fatto, il file è nei tuoi download, ma senza: ${x} (Gemini non ha risposto in tempo; riprova più tardi e saranno pronti).`,
+    giaPronto: "Già fatto per questo video", schema: "schema", aspetto: "Aspetto ancora:", esportatoSenza: (x) => `Fatto, il file è nei tuoi download, ma senza: ${x} (Gemini non ha risposto in tempo; riprova più tardi e saranno pronti).`,
     rispostaGoogle: "Risposta di Google:", lento: "Gemini in questo momento è lento. Vado avanti: puoi anche chiudere, la risposta sarà pronta la prossima volta che lo apri.",
     esporta: "Esporta", esportaSotto: "Scegli cosa mettere nel documento. Quello che non è ancora pronto si prepara adesso (può volerci mezzo minuto).", preparo: "Preparo…",
     esportato: "Fatto: il file è nei tuoi download.", erroreEsporta: "L'export non è riuscito: riprova.", pdfTipo: "Scheda di studio", creatoIl: "Creata il",
@@ -172,6 +172,14 @@ export function banco(dove, v, A) {
     if (aperto && CON_AI.includes(aperto)) mostraChiave(aperto);
   };
   disegnaStato();
+  // ✓ sulle icone degli strumenti già fatti per questo video (nella lingua dell'interfaccia), e su Appunti/Trascrizione se ci sono
+  const fatti = new Set();
+  const spunta = (k) => { fatti.add(k); const b = dove.querySelector(`.bi[data-k="${k}"]`); if (b && !b.querySelector(".bi-fatto")) b.insertAdjacentHTML("beforeend", `<span class="bi-fatto" title="${p("giaPronto")}" aria-label="${p("giaPronto")}">✓</span>`); };
+  if (yt) {
+    fetch(`/api/banco/pronti/${v.id}?ui=${A.ui()}`).then((r) => (r.ok ? r.json() : { pronti: [] })).then((x) => (x.pronti || []).forEach(spunta)).catch(() => {});
+    A.trascrizione(v.id).then((t) => { if (t?.righe?.length) spunta("tr"); }).catch(() => {});
+    A.appuntiDi?.(v.id).then((l) => { if (l?.length) spunta("ap"); }).catch(() => {});
+  }
   dove.querySelector(".banco-riga").onclick = (e) => {
     const b = e.target.closest(".bi"); if (!b) return;
     if (b.dataset.k === "studio") return studio(!inStudio());
@@ -187,7 +195,7 @@ export function banco(dove, v, A) {
   async function daAI(cosa, disegna) {
     const { ok, stato, d } = await chiedi(cosa);
     if (aperto !== cosa && !(cosa === "tempo" && aperto === "tempo")) return;
-    if (ok) return disegna(d);
+    if (ok) { spunta(cosa); return disegna(d); }
     if (d.errore === "trascrizione") { const t = await A.trascrizione(v.id); return A.chiediTrascrizione(pannello, v.id, t.fonte, () => { if (aperto === cosa) apri(cosa, true); }); }
     if (stato === 401) return mostraEntra(cosa);
     if (d.errore === "chiave" || d.errore === "nonValida") return mostraChiave(cosa, d.errore === "nonValida" ? p("errNonValida") : "");
@@ -237,6 +245,7 @@ export function banco(dove, v, A) {
     if (aperto !== "simili") return;
     if (stato === 401) return mostraEntra("simili");
     if (!ok) { pannello.innerHTML = `<p class="sotto">${stato === 429 ? p("troppe") : p("erroreAI")}</p>`; return; }
+    spunta("simili");
     if (!d.momenti?.length) { pannello.innerHTML = `<p class="sotto">${p("nessunSimile")}</p>`; return; }
     const re = d.parole?.length ? new RegExp(`(${d.parole.map((x) => x.slice(0, Math.max(4, x.length - 1)).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi") : null;
     const evidenzia = (x) => (re ? esc(x).replace(re, "<mark>$1</mark>") : esc(x));
