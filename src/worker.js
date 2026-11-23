@@ -1,6 +1,6 @@
 import { CATEGORIE } from "./canali.js";
 import { PROPOSTE } from "./proposte.js";
-import { gestisciConto, utenteDa, chiaveDi, haChiave } from "./conto.js";
+import { gestisciConto, utenteDa, chiaveDi, haChiave, chiaveSalvata, salvaSeManca } from "./conto.js";
 
 const LINGUE = ["it", "en", "es", "de", "fr"]; // lingue dei canali
 const PAESE = { it: "IT", es: "ES", de: "DE", fr: "FR" };
@@ -600,11 +600,16 @@ async function banco(req, env, pathname, ctx) {
   // SCHOOL è per chi ha la sua Lavagna; le funzioni AI vogliono anche la sua chiave Gemini
   const chi = await utenteDa(req, env);
   if (!chi) return json({ errore: "accesso" }, 0, 401);
-  const chiaveGemini = (req.headers.get("x-gemini-key") || "").trim();
+  // la chiave: quella salvata nella Lavagna; se arriva ancora dal browser (prima di questa versione) si controlla e si salva
+  let chiaveGemini = (req.headers.get("x-gemini-key") || "").trim();
   const chiave = new Request(`https://cache.lavagna/banco5/${cosa}/${id}/${cosa === "traduci" ? `${verso}/${k}` : cosa === "simili" ? "" : ui}`);
   const pronta = await caches.default.match(chiave);
   if (pronta) return pronta;
-  if (cosa !== "simili" && !(await chiaveDi(env, chi.id, chiaveGemini))) return json({ errore: "chiave" }, 0, 403);
+  if (cosa !== "simili") {
+    if (chiaveGemini && await chiaveDi(env, chi.id, chiaveGemini)) ctx?.waitUntil(salvaSeManca(env, chi.id, chiaveGemini));
+    else chiaveGemini = await chiaveSalvata(env, chi.id);
+    if (!chiaveGemini) return json({ errore: "chiave" }, 0, 403);
+  }
   if (MAX_BANCO[cosa] && !(await limite(env, req, `banco-${cosa}`, MAX_BANCO[cosa]))) return json({ errore: "troppe" }, 0, 429);
   // il lavoro va avanti anche se la pagina chiude la richiesta (si cambia icona, si chiude il pannello):
   // finisce e resta in cache, così al clic dopo è subito pronto
@@ -730,7 +735,8 @@ export default {
       }
       // con la chiave Gemini di chi guarda: passa solo di qui, non si salva né si scrive da nessuna parte
       if (req.method !== "POST") return json({ errore: "POST" }, 0, 405);
-      const g = (req.headers.get("x-gemini-key") || "").trim();
+      let g = (req.headers.get("x-gemini-key") || "").trim();
+      if (!g) { const chi = await utenteDa(req, env); if (chi) g = await chiaveSalvata(env, chi.id); } // la chiave salvata nella propria Lavagna
       if (!/^[\w.-]{20,200}$/.test(g)) return json({ errore: "chiave" }, 0, 400);
       const gia = await leggiTrascrizione(env, id);
       if (gia?.righe.length) return json(gia);

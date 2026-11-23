@@ -267,29 +267,35 @@ const menuEsporta = (dove, fai, opz = {}) => {
 // ——— chiedere la trascrizione di un video che non ce l'ha: subito con una chiave Gemini gratuita, oppure in coda ———
 // (la richiesta in coda è già registrata: la pagina ha chiesto la trascrizione e il server se l'è segnata)
 export function chiediTrascrizione(box, id, fonte, fatto) {
-  const chiave = C.memo.get("chiaveGemini", "");
+  const salvata = !!C.io()?.gemini; // la chiave salvata nella propria Lavagna (il server la usa da sé)
+  const chiave = C.memo.get("chiaveGemini", "") || (salvata ? "salvata" : "");
   box.innerHTML = `<div class="tr-manca"><p><strong>${fonte === "nessuna" ? s("nessunParlato") : s("nessunaTr")}</strong></p>
     <div class="chiedi-due">
       <div class="chiedi"><h4>${s("subitoT")}</h4><p class="sotto">${chiave ? s("conLaTua") : `${s("conGemini")} <a class="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">${s("prendiChiave")} ↗</a>`}</p>
         <form class="g-form">${chiave ? "" : `<input type="password" class="g-chiave" placeholder="${s("chiaveGemini")}" autocomplete="off" required aria-label="${s("chiaveGemini")}">`}
-        <button class="bott on">${s("trascrivi")}</button>${chiave ? ` <button type="button" class="link g-cambia">${s("cambiaChiave")}</button>` : ""}</form>
+        <button class="bott on">${s("trascrivi")}</button>${chiave && !salvata ? ` <button type="button" class="link g-cambia">${s("cambiaChiave")}</button>` : ""}</form>
         <p class="msg g-msg" role="status"></p></div>
       <div class="chiedi"><h4>${s("codaT")}</h4><p class="sotto">${s("codaTesto")}</p></div>
     </div></div>`;
   box.querySelector(".g-cambia")?.addEventListener("click", () => { C.memo.set("chiaveGemini", ""); chiediTrascrizione(box, id, fonte, fatto); });
   box.querySelector(".g-form").onsubmit = async (e) => {
     e.preventDefault();
-    const k = chiave || box.querySelector(".g-chiave").value.trim();
-    if (!k) return;
+    const k = salvata ? "" : (chiave || box.querySelector(".g-chiave")?.value || "").replace(/\s+/g, "");
+    if (!k && !salvata) return;
     const b = e.target.querySelector("button"); b.disabled = true;
     const msg = box.querySelector(".g-msg");
     msg.textContent = s("ascolta");
-    const r = await fetch(`/api/parlato/${id}/gemini`, { method: "POST", headers: { "x-gemini-key": k } }).catch(() => null);
+    const r = await fetch(`/api/parlato/${id}/gemini`, { method: "POST", headers: k ? { "x-gemini-key": k } : {} }).catch(() => null);
     const d = await r?.json().catch(() => ({})) || {};
     if (!box.isConnected) return;
-    if (r?.ok && d.righe?.length) { C.memo.set("chiaveGemini", k); trascrizioni.set(id, Promise.resolve(d)); C.avvisa(s("fatta")); fatto?.(); return; }
+    if (r?.ok && d.righe?.length) {
+      // una chiave scritta qui: se si è entrati, si salva nella propria Lavagna (non verrà più chiesta); altrimenti resta in questo browser
+      if (k && C.io()) fetch("/api/conto/gemini", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chiave: k }) }).then((x) => { if (x.ok && C.io()) C.io().gemini = true; }).catch(() => {});
+      else if (k) C.memo.set("chiaveGemini", k);
+      trascrizioni.set(id, Promise.resolve(d)); C.avvisa(s("fatta")); fatto?.(); return;
+    }
     b.disabled = false;
-    if (d.errore === "chiave") C.memo.set("chiaveGemini", "");
+    if (d.errore === "chiave" && !salvata) C.memo.set("chiaveGemini", "");
     msg.textContent = ({ chiave: s("erroreChiave"), quota: s("erroreQuota"), troppe: s("erroreTroppe"), vuota: s("erroreVuota") }[d.errore] || s("erroreGemini")) + (d.dettaglio ? ` ${s("rispostaGoogle")} ${d.dettaglio}` : "");
     if (d.errore === "chiave") setTimeout(() => chiediTrascrizione(box, id, fonte, fatto), 2500);
   };

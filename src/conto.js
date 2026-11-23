@@ -156,7 +156,7 @@ export async function gestisciConto(req, env, pathname) {
     if (gia && gia.utente !== u.id) return json({ errore: "giaUsata" }, 409);
     await env.DB.batch([
       env.DB.prepare("DELETE FROM chiavi_gemini WHERE utente = ?").bind(u.id),
-      env.DB.prepare("INSERT INTO chiavi_gemini (impronta, utente, creato) VALUES (?, ?, ?)").bind(imp, u.id, ora()),
+      env.DB.prepare("INSERT INTO chiavi_gemini (impronta, utente, creato, cifrata) VALUES (?, ?, ?, ?)").bind(imp, u.id, ora(), await cifra(env, chiave)),
     ]);
     return json({ ok: true });
   }
@@ -193,4 +193,34 @@ export async function chiaveDi(env, utente, chiave) {
 }
 export async function haChiave(env, utente) {
   return !!(await env.DB.prepare("SELECT 1 AS x FROM chiavi_gemini WHERE utente = ?").bind(utente).first().catch(() => null));
+}
+
+// ——— la chiave Gemini conservata nella Lavagna di ciascuno, cifrata (AES-GCM; il segreto CHIAVE_CIFRA sta solo nel server) ———
+async function chiaveAes(env) {
+  if (!env.CHIAVE_CIFRA) throw new Error("manca CHIAVE_CIFRA");
+  const grezza = Uint8Array.from(atob(env.CHIAVE_CIFRA), (c) => c.charCodeAt(0));
+  return crypto.subtle.importKey("raw", await crypto.subtle.digest("SHA-256", grezza), "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+async function cifra(env, testo) {
+  try {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const c = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await chiaveAes(env), new TextEncoder().encode(testo)));
+    return `${isoBase64URL.fromBuffer(iv)}.${isoBase64URL.fromBuffer(c)}`;
+  } catch { return null; }
+}
+async function decifra(env, scatola) {
+  try {
+    const [iv, c] = String(scatola || "").split(".");
+    const t = await crypto.subtle.decrypt({ name: "AES-GCM", iv: isoBase64URL.toBuffer(iv) }, await chiaveAes(env), isoBase64URL.toBuffer(c));
+    return new TextDecoder().decode(t);
+  } catch { return ""; }
+}
+// la chiave salvata di questa Lavagna ("" se non c'è)
+export async function chiaveSalvata(env, utente) {
+  const r = await env.DB.prepare("SELECT cifrata FROM chiavi_gemini WHERE utente = ?").bind(utente).first().catch(() => null);
+  return r?.cifrata ? await decifra(env, r.cifrata) : "";
+}
+// una chiave arrivata dal browser e già collegata a questa Lavagna, ma non ancora salvata: si salva (così non si chiede più)
+export async function salvaSeManca(env, utente, chiave) {
+  await env.DB.prepare("UPDATE chiavi_gemini SET cifrata = ? WHERE utente = ? AND cifrata IS NULL").bind(await cifra(env, chiave), utente).run().catch(() => {});
 }

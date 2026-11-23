@@ -12,7 +12,7 @@ const P = {
     chiaveT: "Your Gemini key (free)", chiaveSotto: "SCHOOL's tools use Gemini, Google's AI. Everyone uses their own key: it is free and takes a minute.",
     passi: ["Open <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\" rel=\"noopener\">Google AI Studio ↗</a> and sign in with your Google account.", "Press «Create API key».", "If it asks, choose «Create API key in new project».", "Press «Copy key» (the key is one long line: it starts with «AQ.» or «AIza») and paste it here."],
     incollaChiave: "Paste your key (AIza… or AQ.…)", salvaChiave: "Save and continue", verifico: "Checking the key with Google…",
-    chiaveNote: "No credit card: Google's free plan is enough to study every day. The key stays only in this browser: Lavagna does not keep it, only a fingerprint to check that each key is used by one person only. On the free plan Google may use what you send to improve its services. You can remove it whenever you like.",
+    chiaveNote: "No credit card: Google's free plan is enough to study every day. Your key is kept in your Lavagna, encrypted: it works on all your devices and you won't be asked again. Lavagna uses it only for your requests to Gemini, and keeps a fingerprint to check that each key belongs to one person only. On the free plan Google may use what you send to improve its services. «Remove» deletes it completely.",
     errFormato: "This does not look like a key: it is one long line that starts with AIza or AQ., with no spaces.", errNonValida: "Google says this key does not work: check you copied all of it.",
     errGiaUsata: "This key is already linked to another Lavagna: everyone must use their own.", errQuota: "Your key has used up today's free requests: try again tomorrow.",
     chiaveOk: "Gemini key: ready", cambiaChiave: "change", togliChiave: "remove", chiaveAltroDispositivo: "On this device your key is missing: paste it again (the same as before is fine).",
@@ -39,7 +39,7 @@ const P = {
     chiaveT: "La tua chiave Gemini (gratuita)", chiaveSotto: "Gli strumenti di SCHOOL usano Gemini, l'intelligenza artificiale di Google. Ognuno usa la sua chiave: è gratuita e si fa in un minuto.",
     passi: ["Apri <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\" rel=\"noopener\">Google AI Studio ↗</a> ed entra con il tuo account Google.", "Premi «Create API key» (Crea chiave API).", "Se te lo chiede, scegli «Create API key in new project» (in un nuovo progetto).", "Premi «Copy key» (la chiave è una riga lunga che comincia con «AQ.» oppure «AIza») e incollala qui."],
     incollaChiave: "Incolla la tua chiave (AIza… o AQ.…)", salvaChiave: "Salva e continua", verifico: "Controllo la chiave con Google…",
-    chiaveNote: "Niente carta di credito: il piano gratuito di Google basta per studiare ogni giorno. La chiave resta solo in questo browser: Lavagna non la conserva, tiene solo un'impronta per controllare che ogni chiave sia usata da una sola persona. Con il piano gratuito Google può usare i testi inviati per migliorare i suoi servizi. Puoi toglierla quando vuoi.",
+    chiaveNote: "Niente carta di credito: il piano gratuito di Google basta per studiare ogni giorno. La chiave resta nella tua Lavagna, cifrata: funziona su tutti i tuoi dispositivi e non te la chiediamo più. Lavagna la usa solo per le tue richieste a Gemini, e tiene un'impronta per controllare che ogni chiave sia di una sola persona. Con il piano gratuito Google può usare i testi inviati per migliorare i suoi servizi. «Togli» la cancella del tutto.",
     errFormato: "Non sembra una chiave: è una riga lunga che comincia con AIza oppure con AQ., senza spazi.", errNonValida: "Google dice che questa chiave non funziona: controlla di averla copiata tutta.",
     errGiaUsata: "Questa chiave è già collegata a un'altra Lavagna: ognuno deve usare la sua.", errQuota: "La tua chiave ha finito le richieste gratuite di oggi: riprova domani.",
     chiaveOk: "Chiave Gemini: pronta", cambiaChiave: "cambia", togliChiave: "togli", chiaveAltroDispositivo: "Su questo dispositivo la tua chiave non c'è: incollala di nuovo (va bene la stessa di prima).",
@@ -123,7 +123,7 @@ export function banco(dove, v, A) {
   // la porta di SCHOOL: prima la propria Lavagna (passkey), poi la propria chiave Gemini per gli strumenti con l'AI
   const CON_AI = [...AI, "esporta"];
   const chiaveQui = () => A.memo.get("chiaveGemini", "");
-  const pronta = () => !!(A.io()?.gemini && chiaveQui());
+  const pronta = () => !!A.io()?.gemini; // la chiave è salvata (cifrata) nella propria Lavagna: vale su ogni dispositivo
   function porta(k) {
     if (!A.io()) { mostraEntra(k); return false; }
     if (CON_AI.includes(k) && !pronta()) { mostraChiave(k); return false; }
@@ -137,7 +137,7 @@ export function banco(dove, v, A) {
   }
   function mostraChiave(k, avviso = "") {
     apriPannello(k);
-    const altrove = A.io()?.gemini && !chiaveQui();
+    const altrove = false;
     pannello.innerHTML = `<div class="bp-porta"><h3>✦ ${p("chiaveT")}</h3><p>${p("chiaveSotto")}</p>
       ${altrove || avviso ? `<p class="bp-avviso">${avviso || p("chiaveAltroDispositivo")}</p>` : ""}
       <ol class="bp-passi">${p("passi").map((x) => `<li>${x}</li>`).join("")}</ol>
@@ -154,7 +154,7 @@ export function banco(dove, v, A) {
       const d = await r?.json().catch(() => ({})) || {};
       f.querySelector("button").disabled = false;
       if (!r?.ok) { msg.textContent = { formato: p("errFormato"), nonValida: p("errNonValida"), giaUsata: p("errGiaUsata") }[d.errore] || p("erroreAI"); return; }
-      A.memo.set("chiaveGemini", chiave); if (A.io()) A.io().gemini = true;
+      A.memo.set("chiaveGemini", ""); if (A.io()) A.io().gemini = true; // ora sta nella Lavagna, non serve più tenerla nel browser
       disegnaStato(); aperto = null; apri(k);
     };
   }
